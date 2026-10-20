@@ -105,11 +105,15 @@ class DetectionEngine:
         detectors: list[BaseDetector],
         tracker: RingTracker | None = None,
         config: EngineConfig | None = None,
+        scorer: Any = None,
     ) -> None:
         self.store = store
         self.detectors = detectors
         self.tracker = tracker or RingTracker()
         self.cfg = config or EngineConfig()
+        # Optional scoring stage (fraudsim.scoring.stage.ScoringStage): features, risk
+        # score and explanation for every ring that changed in a batch.
+        self.scorer = scorer
         self.reports: list[BatchReport] = []
         self._batch = 0
         self._last_full_t: float | None = None
@@ -193,6 +197,11 @@ class DetectionEngine:
         t = time.perf_counter()
         updates = self.tracker.update(candidates, evaluated, now) if evaluated else []
         timings["track"] = _ms(t)
+
+        if self.scorer is not None and updates:
+            t = time.perf_counter()
+            updates += self.scorer.score_updates(self, updates, now_t, since_t)
+            timings["score"] = _ms(t)
 
         pruned: dict[str, int] = {}
         if cfg.ttl_s is not None and self._due(self._last_prune_t, cfg.prune_interval_s, now_t):

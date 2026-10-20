@@ -14,11 +14,14 @@ import contextlib
 import math
 from collections import deque
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Any
 
 from fraudsim.detectors.engine import DetectionEngine, EngineConfig, build_detectors
 from fraudsim.detectors.ensemble import RingUpdate, TrackedRing
 from fraudsim.graph.store import InMemoryGraphStore
+from fraudsim.scoring.scorer import RingScorer
+from fraudsim.scoring.stage import ScoringStage
 from fraudsim.simulator.event_generator import EventGenerator
 from fraudsim.simulator.player import StreamPlayer
 from fraudsim.simulator.scenario_loader import load_scenario
@@ -55,8 +58,12 @@ class LiveRun:
         self._player_task: asyncio.Task[Any] | None = None
         self._consumer_task: asyncio.Task[None] | None = None
         store = InMemoryGraphStore()
+        self.scoring = ScoringStage(scorer=load_default_scorer())
         self.engine = DetectionEngine(
-            store, build_detectors(store), config=engine_config or EngineConfig()
+            store,
+            build_detectors(store),
+            config=engine_config or EngineConfig(),
+            scorer=self.scoring,
         )
         self._batch: list[Event] = []
         self._flagged: set[str] = set()
@@ -88,8 +95,9 @@ class LiveRun:
         batch, self._batch = self._batch, []
         report = self.engine.process(batch)
         newly: set[str] = set()
+        flag_change = "alert" if self.scoring.scorer is not None else "confirmed"
         for upd in report.updates:
-            if upd.change == "confirmed":
+            if upd.change == flag_change:
                 newly |= set(upd.members)
             if self._broadcast is not None:
                 await self._broadcast({"type": "RING_UPDATE", "update": upd.to_dict()})
@@ -158,6 +166,17 @@ class LiveRun:
         }
 
 
+DEFAULT_MODEL = Path(__file__).resolve().parents[3] / "models" / "ring_scorer_lr.joblib"
+
+
+def load_default_scorer() -> RingScorer | None:
+    """The trained logistic-regression scorer if `fraudsim train-scorer` produced one."""
+    try:
+        return RingScorer.load(DEFAULT_MODEL) if DEFAULT_MODEL.exists() else None
+    except Exception:
+        return None
+
+
 def ring_payload(ring: TrackedRing) -> dict[str, Any]:
     """TrackedRing in the shape of api.schemas.RingDetailResponse."""
     return {
@@ -166,8 +185,15 @@ def ring_payload(ring: TrackedRing) -> dict[str, Any]:
         "ring_type": ring.ring_type.value,
         "score": ring.score,
         "members": sorted(ring.members),
-        "features": {},  # Milestone 4
-        "explanation": {"detectors": sorted(ring.sources), "evidence": ring.evidence},
+        "features": ring.features,
+        "explanation": {
+            "detectors": sorted(ring.sources),
+            "risk": ring.risk,
+            "alerted_at": ring.alerted_at.isoformat() if ring.alerted_at else None,
+            "early_warned_at": ring.early_warned_at.isoformat() if ring.early_warned_at else None,
+            **(ring.explanation or {}),
+            "evidence": ring.evidence,
+        },
         "created_at": ring.first_seen.isoformat(),
         "updated_at": ring.last_seen.isoformat(),
     }

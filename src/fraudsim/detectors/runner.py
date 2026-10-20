@@ -66,14 +66,23 @@ def run_detection(
     attacker_feedback: bool = True,
     duration_s: float | None = None,
     run_id: str | None = None,
+    scoring: Any = None,
 ) -> DetectionRun:
+    """
+    scoring: optional fraudsim.scoring.stage.ScoringStage. With a fitted model,
+    the attacker is told about *alerts* (confirmed and risk >= threshold);
+    without one, about confirmed rings.
+    """
     raw = load_scenario(scenario) if isinstance(scenario, str) else scenario
     sim_cfg = parse_simulation_config(raw)
     run_id = run_id or new_run_id()
     gen = EventGenerator(seed=seed, run_id=run_id, config=sim_cfg)
     store = make_store(backend)
     ecfg = engine_config or EngineConfig()
-    engine = DetectionEngine(store, build_detectors(store, detector_overrides), config=ecfg)
+    engine = DetectionEngine(
+        store, build_detectors(store, detector_overrides), config=ecfg, scorer=scoring
+    )
+    alert_mode = scoring is not None and getattr(scoring, "scorer", None) is not None
 
     run_dir: Path | None = None
     files: dict[str, Any] = {}
@@ -98,7 +107,7 @@ def run_detection(
             batch = []
             _write_report(files, report)
             if attacker_feedback:
-                newly = _newly_confirmed(report) - flagged_sent
+                newly = _flagged_in(report, alert_mode) - flagged_sent
                 if newly:
                     gen.notify_flagged(newly)
                     flagged_sent |= newly
@@ -149,7 +158,9 @@ def run_detection(
     return DetectionRun(manifest, engine, gen)
 
 
-def _newly_confirmed(report: Any) -> set[str]:
+def _flagged_in(report: Any, alert_mode: bool) -> set[str]:
+    if alert_mode:
+        return {u for upd in report.updates if upd.change == "alert" for u in upd.members}
     out: set[str] = set()
     for upd in report.updates:
         if upd.change == "confirmed" or (
@@ -184,4 +195,9 @@ def _ring_dict(ring: Any) -> dict[str, Any]:
         "parent": ring.parent,
         "history": ring.history,
         "evidence": ring.evidence,
+        "risk": ring.risk,
+        "features": ring.features,
+        "explanation": ring.explanation,
+        "alerted_at": ring.alerted_at.isoformat() if ring.alerted_at else None,
+        "early_warned_at": ring.early_warned_at.isoformat() if ring.early_warned_at else None,
     }

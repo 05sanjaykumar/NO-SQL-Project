@@ -37,7 +37,8 @@ class EnsembleConfig(DetectorConfig):
     detector_type: DetectorType = DetectorType.ENSEMBLE
     name: str = "Ensemble"
     merge_jaccard: float = 0.5  # cross-detector merge within one evaluation
-    merge_containment: float = 0.8  # or |A & B| / min(|A|, |B|) >= this
+    merge_containment: float = 0.8  # or |A & B| / min(|A|, |B|) >= this ...
+    merge_max_ratio: float = 2.0  # ... and the larger group is at most this many times bigger
     match_jaccard: float = 0.5  # identity matching across evaluations
     split_jaccard: float = 0.2  # a leftover piece overlapping a ring this much is a split
     hysteresis_confirm: int = 2
@@ -49,9 +50,12 @@ def _overlaps(a: set[str], b: set[str], cfg: EnsembleConfig) -> bool:
     inter = len(a & b)
     if not inter:
         return False
-    return (
-        jaccard(a, b) >= cfg.merge_jaccard or inter / min(len(a), len(b)) >= cfg.merge_containment
-    )
+    if jaccard(a, b) >= cfg.merge_jaccard:
+        return True
+    # Containment only merges groups of comparable size: a 3-cycle found inside a
+    # 40-user IP group is a separate finding, not the same ring seen twice.
+    small, large = sorted((len(a), len(b)))
+    return inter / small >= cfg.merge_containment and large <= cfg.merge_max_ratio * small
 
 
 def merge_candidates(cands: list[RingCandidate], cfg: EnsembleConfig) -> list[RingCandidate]:
@@ -141,6 +145,14 @@ class TrackedRing:
     parent: str | None = None
     evidence: dict[str, Any] = field(default_factory=dict)
     history: list[dict[str, Any]] = field(default_factory=list)
+    # (t, size) every time the member set changed; used for growth features.
+    size_history: list[tuple[float, int]] = field(default_factory=list)
+    # Filled by the scoring stage (Milestone 4).
+    features: dict[str, float] = field(default_factory=dict)
+    risk: float | None = None
+    explanation: dict[str, Any] | None = None
+    alerted_at: datetime | None = None
+    early_warned_at: datetime | None = None
 
     def to_candidate(self) -> RingCandidate:
         return RingCandidate(
@@ -311,6 +323,7 @@ class RingTracker:
             last_seen=now,
             evidence=cand.evidence,
         )
+        ring.size_history.append((now.timestamp(), len(ring.members)))
         self.rings[ring.ring_id] = ring
         updates.append(self._event(ring, now, "created"))
         return ring
@@ -327,6 +340,8 @@ class RingTracker:
         ring.last_seen = now
         ring.hits += 1
         ring.misses = 0
+        if added or removed:
+            ring.size_history.append((now.timestamp(), len(ring.members)))
         if added:
             updates.append(self._event(ring, now, "grew", {"added": sorted(added)}))
         if removed:

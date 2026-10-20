@@ -192,6 +192,15 @@ async def analyst_feedback(ring_id: str, feedback: AnalystFeedbackRequest) -> di
     ring = state.active_rings[ring_id]
     ring["status"] = "confirmed" if feedback.action == "confirm" else "dissolved"
     ring["updated_at"] = datetime.now(UTC).isoformat()
+    adaptation = None
+    if state.live is not None:
+        risk = ring.get("explanation", {}).get("risk")
+        adaptation = state.live.scoring.policy.feedback(
+            ring_id,
+            ring["ring_type"],
+            float(risk if risk is not None else ring["score"]),
+            feedback.action,
+        )
 
     await state.broadcast_ws(
         {
@@ -202,7 +211,12 @@ async def analyst_feedback(ring_id: str, feedback: AnalystFeedbackRequest) -> di
             "note": feedback.note,
         }
     )
-    return {"status": "success", "ring_id": ring_id, "new_status": ring["status"]}
+    return {
+        "status": "success",
+        "ring_id": ring_id,
+        "new_status": ring["status"],
+        "threshold_adaptation": adaptation,
+    }
 
 
 @app.get("/metrics/summary", response_model=MetricsResponse)

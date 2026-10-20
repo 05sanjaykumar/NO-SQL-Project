@@ -160,6 +160,14 @@ class Neo4jGraphStore(GraphStore):
         view.full = True
         return view
 
+    def joined(self, users: set[str]) -> dict[str, float]:
+        rows = self._q(
+            "UNWIND $ids AS uid MATCH (u:User {user_id: uid}) WHERE u.joined_t IS NOT NULL "
+            "RETURN u.user_id AS u, u.joined_t AS t",
+            ids=sorted(users),
+        )
+        return {str(r["u"]): float(r["t"]) for r in rows}  # type: ignore[arg-type]
+
     def prune(self, cutoff_t: float) -> dict[str, int]:
         self.queries += 2
         return self.client.prune_before(cutoff_t)

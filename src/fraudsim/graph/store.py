@@ -75,6 +75,13 @@ class GraphView:
     _by_user: dict[str, list[Link]] | None = field(default=None, repr=False)
     _by_attr: dict[Attr, list[Link]] | None = field(default=None, repr=False)
 
+    def __post_init__(self) -> None:
+        # Canonical order: detectors iterate these lists, and floating-point sums
+        # depend on order, so an order that varied with set/hash iteration (or with
+        # Neo4j result order) would make detection differ between processes.
+        self.links.sort(key=lambda lk: (lk.user, lk.kind, lk.attr))
+        self.txns.sort(key=lambda tx: (tx.t, tx.txn_id))
+
     @property
     def now(self) -> datetime:
         return datetime.fromtimestamp(self.now_t, tz=UTC)
@@ -162,6 +169,10 @@ class GraphStore(ABC):
         """Snapshot of the whole active graph (full recomputation)."""
 
     @abstractmethod
+    def joined(self, users: set[str]) -> dict[str, float]:
+        """Account creation time (t of user_join) for the given users, where known."""
+
+    @abstractmethod
     def prune(self, cutoff_t: float) -> dict[str, int]:
         """Drop transactions and attribute links older than cutoff_t (TTL)."""
 
@@ -177,6 +188,7 @@ class InMemoryGraphStore(GraphStore):
 
     def __init__(self) -> None:
         self.active: dict[str, bool] = {}
+        self.joined_t: dict[str, float] = {}
         self.user_links: dict[str, dict[Attr, float]] = defaultdict(dict)
         self.attr_users: dict[Attr, dict[str, float]] = defaultdict(dict)
         self.out_txns: dict[str, list[Txn]] = defaultdict(list)
@@ -192,6 +204,7 @@ class InMemoryGraphStore(GraphStore):
             et = e.event_type
             if et == EventType.USER_JOIN:
                 self.active[p["user_id"]] = True
+                self.joined_t[p["user_id"]] = t
             elif et == EventType.USER_LEAVE:
                 if p["user_id"] in self.active:
                     self.active[p["user_id"]] = False
@@ -270,6 +283,9 @@ class InMemoryGraphStore(GraphStore):
             if txn.t >= since_t and txn.receiver in region
         ]
         return GraphView(now_t, since_t, region, links, degree, txns)
+
+    def joined(self, users: set[str]) -> dict[str, float]:
+        return {u: self.joined_t[u] for u in users if u in self.joined_t}
 
     def full_view(self, since_t: float, now_t: float) -> GraphView:
         view = self.view({u for u, a in self.active.items() if a}, since_t, now_t)

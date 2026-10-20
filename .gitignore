@@ -6,3 +6,5 @@ runs/
 results/
 .pytest_cache/
 .ruff_cache/
+demo/
+models/*.joblib.tmp

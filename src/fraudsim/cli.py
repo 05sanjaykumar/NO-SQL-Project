@@ -141,6 +141,58 @@ def detect(
     click.echo(json.dumps({k: m[k] for k in keys} | {"run_dir": m.get("run_dir")}, indent=2))
 
 
+@main.command("demo-story")
+@click.option("--seed", default=7, help="Demo seed (not used for training or testing the model)")
+@click.option("--out", default="demo/", help="Output directory for story.html")
+@click.option("--model", "model_path", default=None, help="Trained scorer (.joblib)")
+@click.option("--open/--no-open", "open_browser", default=False, help="Open the page when done")
+def demo_story(seed: int, out: str, model_path: str | None, open_browser: bool) -> None:
+    """Hidden-ring demo: degree-capped rules vs the hub-aware system, as one HTML page."""
+    import webbrowser
+    from pathlib import Path
+
+    from fraudsim.demo.story import DEFAULT_MODEL, run_story
+
+    page = run_story(seed=seed, out_dir=Path(out), model_path=Path(model_path or DEFAULT_MODEL))
+    click.echo(f"Wrote {page.resolve()}")
+    if open_browser:
+        webbrowser.open(page.resolve().as_uri())
+
+
+@main.command("train-scorer")
+@click.option(
+    "--model",
+    "model_type",
+    default="logistic_regression",
+    type=click.Choice(["logistic_regression", "gradient_boosting"]),
+)
+@click.option("--train-seeds", default="101-105", help="e.g. 101-105 or 101,103")
+@click.option("--test-seeds", default="201-203", help="Disjoint from --train-seeds")
+@click.option("--scenarios", default="", help="Comma-separated; default: all six")
+@click.option("--out", default=None, help="Model path (default models/ring_scorer_<lr|gb>.joblib)")
+def train_scorer_cmd(
+    model_type: str, train_seeds: str, test_seeds: str, scenarios: str, out: str | None
+) -> None:
+    """Train + calibrate the ring risk model on simulator ground truth."""
+    import json
+    from pathlib import Path
+
+    from fraudsim.scoring.train import DEFAULT_SCENARIOS, parse_seeds, train_scorer
+
+    short = "lr" if model_type == "logistic_regression" else "gb"
+    path = Path(out or f"models/ring_scorer_{short}.joblib")
+    names = tuple(s for s in scenarios.split(",") if s) or DEFAULT_SCENARIOS
+    _scorer, metrics = train_scorer(
+        model_type,
+        parse_seeds(train_seeds),
+        parse_seeds(test_seeds),
+        names,
+        out_model=path,
+        log=click.echo,
+    )
+    click.echo(json.dumps({"model": str(path), "metrics": metrics}, indent=2))
+
+
 @main.command()
 @click.option("--scenario", default="baseline", help="Scenario name")
 @click.option("--seeds", default=5, help="Number of random seeds")

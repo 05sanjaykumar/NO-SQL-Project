@@ -115,14 +115,20 @@ class Neo4jClient:
         Returns the number of events written per type.
         """
         counts: dict[str, int] = {}
-        with self.session() as session:
-            for etype, rows in group_consecutive(events):
+        groups = group_consecutive(events)
+
+        def _write(tx: Any) -> None:
+            for etype, rows in groups:
                 cypher = _WRITE_QUERIES.get(etype)
                 if cypher:
-                    session.run(cypher, rows=rows)
+                    tx.run(cypher, rows=rows).consume()
                     counts[etype.value] = counts.get(etype.value, 0) + len(rows)
 
-        logger.info("batch_written", counts=counts, total=len(events))
+        # One transaction per batch: a single commit instead of one per group.
+        with self.session() as session:
+            session.execute_write(_write)
+
+        logger.debug("batch_written", counts=counts, total=len(events))
         return counts
 
     # ─── Reads for detectors ──────────────────────────────────────────

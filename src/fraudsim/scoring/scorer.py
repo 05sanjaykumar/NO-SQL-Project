@@ -72,6 +72,7 @@ class RingScorer:
         self.calibrator: IsotonicRegression | None = None
         self.means: np.ndarray | None = None
         self.meta = ScorerMetadata(model_type, list(FEATURE_NAMES))
+        self.source_path: Path | None = None  # set when loaded from disk
 
     @property
     def fitted(self) -> bool:
@@ -242,6 +243,7 @@ class RingScorer:
         scorer.model = blob["model"]
         scorer.calibrator = blob["calibrator"]
         scorer.means = blob["means"]
+        scorer.source_path = Path(path)
         meta_path = Path(path).with_suffix(".json")
         if meta_path.exists():
             meta = json.loads(meta_path.read_text(encoding="utf-8"))

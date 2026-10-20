@@ -4,7 +4,9 @@ FastAPI application with REST routes and WebSocket streaming.
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -96,6 +98,7 @@ async def start_run(req: StartRunRequest) -> RunStatusResponse:
         run_id=state.run_id,
         speed=req.speed_multiplier,
         broadcast=state.broadcast_ws,
+        log_dir=Path(os.environ.get("FRAUDSIM_RUNS_DIR", "runs")) / "live" / state.run_id,
     )
     await state.live.start()
 
@@ -201,6 +204,9 @@ async def analyst_feedback(ring_id: str, feedback: AnalystFeedbackRequest) -> di
             ring["ring_type"],
             float(risk if risk is not None else ring["score"]),
             feedback.action,
+        )
+        state.live.record_feedback(
+            ring_id, feedback.action, adaptation, feedback.analyst_id, feedback.note
         )
 
     await state.broadcast_ws(

@@ -163,7 +163,9 @@ def stats():
                           RETURN collect({label: l, count: c}) AS labels,
                                  sum(c) AS nodes""").single()
         rels = s.run("MATCH ()-[r]->() RETURN count(r) AS c").single()["c"]
-    return {"nodes": counts["nodes"], "relationships": rels, "labels": counts["labels"]}
+        users = s.run("MATCH (:User) RETURN count(*) AS c").single()["c"]
+    return {"nodes": counts["nodes"], "relationships": rels,
+            "users": users, "labels": counts["labels"]}
 
 
 @app.get("/api/run/{qid}")
@@ -192,6 +194,7 @@ def run(qid: str, max_degree: int = 10, uid: str = "u01"):
 
     return {
         "nodes": nodes, "edges": edges, "ms": ms,
+        "scores": bool(target),
         "flagged_users": flagged,
         "true_positives": true_pos,
         "false_positives": (flagged - true_pos) if target else None,

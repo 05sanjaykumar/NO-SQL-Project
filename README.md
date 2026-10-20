@@ -10,12 +10,18 @@ pattern matching, on a small controlled dataset with known planted rings.
 
 ```bash
 docker compose up -d
-pip install -r requirements.txt
-python seed.py
+python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
+./.venv/bin/python seed.py
+./.venv/bin/python app.py
 ```
 
-Then open http://localhost:7474 (user `neo4j`, password `fraudring123`) and paste
-queries from `queries.cypher` one block at a time.
+Then open **http://localhost:8010** for the dashboard - buttons for each query,
+a slider for the degree threshold, and a control to regenerate the dataset at
+any size.
+
+Neo4j's own browser is still available at http://localhost:7474 (user `neo4j`,
+password `fraudring123`) if you want to paste Cypher directly from
+`queries.cypher`.
 
 Shut down with `docker compose down` (add `-v` to also wipe the data volume).
 
@@ -26,6 +32,9 @@ Shut down with `docker compose down` (add `-v` to also wipe the data volume).
 | `docker-compose.yml` | Neo4j 5.26, one service |
 | `seed.py` | Builds the graph and plants the fraud rings |
 | `queries.cypher` | The detection queries |
+| `app.py` | FastAPI service: runs queries, reseeds, scaling benchmark |
+| `static/index.html` | Dashboard - Cytoscape graph, query buttons, degree slider |
+| `paper/IEEE_PAPER.md` | Write-up in IEEE format |
 | `SETUP.md` | Docker and Neo4j setup, commands, troubleshooting |
 | `docs/PLAN.md` | Project plan and future scope |
 
@@ -138,6 +147,23 @@ changed from 100 to 10. Measured in the Neo4j browser on the seeded graph:
 Twelve of the fifteen users Q4a flags are innocent - they share `ip_001`, the
 office wifi. The cap removes all twelve, and the query also runs about four
 times faster because it stops expanding the hub node at all.
+
+### The same experiment across dataset sizes
+
+Press **Run benchmark** in the dashboard, or regenerate at a larger size and
+re-run the shared-IP query. The hub scales with the population, so the damage
+done by omitting the bound grows with the graph:
+
+| Users | Nodes | Precision without bound | Precision with bound |
+|---|---|---|---|
+| 30 | 126 | 20.00% | 100% |
+| 200 | 840 | 4.55% | 100% |
+| 1000 | 4197 | 0.90% | 100% |
+| 3000 | 12590 | 0.30% | 100% |
+
+Recall stays at 100% in every row, but only because ring C sits behind a
+low-degree node by construction. That is a property of this dataset, not a
+guarantee.
 
 Recall stays at 100% here only because ring C sits behind a low-degree IP. That
 is a property of this dataset, not a guarantee: a real ring hiding behind a busy

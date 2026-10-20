@@ -45,6 +45,7 @@ dev = [
     "ruff>=0.7",
     "mypy>=1.12",
     "hypothesis>=6.112",
+    "fakeredis>=2.20",
 ]
 gnn = [
     "torch>=2.4",
@@ -87,6 +88,8 @@ known-first-party = ["fraudsim"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+timeout = 300
 markers = [
     "integration: requires running Neo4j",
     "slow: takes more than 10 seconds",

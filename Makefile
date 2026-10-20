@@ -1,9 +1,10 @@
-.PHONY: help install dev lint test test-unit test-integration experiment demo clean
+.PHONY: help install dev lint test test-unit test-integration simulate simulate-all experiment demo clean
 
 PYTHON ?= python
 DOCKER ?= docker compose
 SEEDS  ?= 5
 SCENARIO ?= baseline
+SEED   ?= 42
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -62,6 +63,16 @@ test-smoke: ## Quick smoke test: 60-second headless scenario
 
 seed: ## Run the original seed.py to load the demo graph
 	$(PYTHON) seed.py
+
+# ─── Simulator ────────────────────────────────────────────────────────
+
+simulate: ## Headless simulator run: make simulate SCENARIO=adversarial SEED=7
+	$(PYTHON) -m fraudsim.cli simulate --scenario $(SCENARIO) --seed $(SEED) --out runs/
+
+simulate-all: ## Headless simulator run of every scenario
+	@for s in baseline high_noise hub_heavy adversarial scale_sweep drift; do \
+		$(MAKE) simulate SCENARIO=$$s SEED=$(SEED) ; \
+	done
 
 # ─── Experiments ──────────────────────────────────────────────────────
 

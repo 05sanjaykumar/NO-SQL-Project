@@ -17,7 +17,7 @@ from typing import Any
 import structlog
 from neo4j import Driver, GraphDatabase, Session
 
-from fraudsim.types import Event, EventType
+from fraudsim.types import GROUND_TRUTH_ONLY_EVENTS, Event, EventType
 
 logger = structlog.get_logger(__name__)
 
@@ -32,8 +32,9 @@ CONSTRAINTS = [
     "CREATE CONSTRAINT txn_id IF NOT EXISTS FOR (t:Transaction) REQUIRE t.txn_id IS UNIQUE",
 ]
 
+# No index on User.ring: ring labels live in the ground-truth ledger, never on the graph.
+# (Only the legacy seed.py still writes that property, for the original course demo.)
 INDEXES = [
-    "CREATE INDEX user_ring IF NOT EXISTS FOR (u:User) ON (u.ring)",
     "CREATE INDEX txn_ts IF NOT EXISTS FOR (t:Transaction) ON (t.ts)",
     "CREATE INDEX user_ts IF NOT EXISTS FOR (u:User) ON (u.created_at)",
 ]
@@ -108,22 +109,18 @@ class Neo4jClient:
         """
         Write a batch of events to the graph using UNWIND for performance.
 
-        Groups events by type and executes one UNWIND query per type.
-        Returns counts of nodes/rels created per type.
+        Consecutive events of the same type are written with one UNWIND query.
+        Order across types is preserved (a link followed by an unlink of the same
+        edge, or a join followed by that user's first transaction, stay in order).
+        Returns the number of events written per type.
         """
-        by_type: dict[EventType, list[dict[str, Any]]] = {}
-        for event in events:
-            by_type.setdefault(event.event_type, []).append(
-                {**event.payload, "event_id": event.event_id, "ts": event.ts.isoformat()}
-            )
-
         counts: dict[str, int] = {}
         with self.session() as session:
-            for etype, rows in by_type.items():
+            for etype, rows in group_consecutive(events):
                 cypher = _WRITE_QUERIES.get(etype)
                 if cypher:
                     session.run(cypher, rows=rows)
-                    counts[etype.value] = len(rows)
+                    counts[etype.value] = counts.get(etype.value, 0) + len(rows)
 
         logger.info("batch_written", counts=counts, total=len(events))
         return counts
@@ -239,13 +236,27 @@ class Neo4jClient:
             return 0
 
 
+def group_consecutive(events: list[Event]) -> list[tuple[EventType, list[dict[str, Any]]]]:
+    """Split events into runs of the same type, preserving order, as UNWIND rows."""
+    groups: list[tuple[EventType, list[dict[str, Any]]]] = []
+    for event in events:
+        if event.event_type in GROUND_TRUTH_ONLY_EVENTS:
+            raise ValueError(f"refusing to write ground-truth event {event.event_type} to graph")
+        row = {**event.payload, "event_id": event.event_id, "ts": event.ts.isoformat()}
+        if groups and groups[-1][0] == event.event_type:
+            groups[-1][1].append(row)
+        else:
+            groups.append((event.event_type, [row]))
+    return groups
+
+
 # ─── Write query templates ────────────────────────────────────────────
 
 _WRITE_QUERIES: dict[EventType, str] = {
     EventType.USER_JOIN: """
         UNWIND $rows AS r
         MERGE (u:User {user_id: r.user_id})
-        SET u.name = r.name, u.created_at = r.ts, u.event_id = r.event_id
+        SET u.name = r.name, u.created_at = r.ts, u.event_id = r.event_id, u.active = true
     """,
     EventType.DEVICE_LINK: """
         UNWIND $rows AS r
@@ -267,6 +278,19 @@ _WRITE_QUERIES: dict[EventType, str] = {
         MERGE (i:IPAddress {ip: r.ip})
         MERGE (u)-[rel:LOGGED_IN_FROM]->(i)
         SET rel.ts = r.ts, rel.event_id = r.event_id
+    """,
+    EventType.USER_LEAVE: """
+        UNWIND $rows AS r
+        MATCH (u:User {user_id: r.user_id})
+        SET u.left_at = r.ts, u.active = false
+    """,
+    EventType.ATTRIBUTE_UNLINK: """
+        UNWIND $rows AS r
+        MATCH (u:User {user_id: r.user_id})-[rel]->(a)
+        WHERE (r.attr_type = 'device' AND type(rel) = 'USED_DEVICE' AND a.device_id = r.attr_id)
+           OR (r.attr_type = 'card' AND type(rel) = 'HAS_CARD' AND a.card_id = r.attr_id)
+           OR (r.attr_type = 'ip' AND type(rel) = 'LOGGED_IN_FROM' AND a.ip = r.attr_id)
+        DELETE rel
     """,
     EventType.TRANSACTION: """
         UNWIND $rows AS r

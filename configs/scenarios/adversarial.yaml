@@ -1,6 +1,6 @@
 name: adversarial
 description: "Adversarial evasion evaluation with adaptive attacker, hub-hiding, low-and-slow, and decoy edges"
-version: "1.0"
+version: "2.0"
 
 simulation:
   duration_seconds: 90
@@ -9,21 +9,24 @@ simulation:
   num_devices: 60
   num_cards: 60
   num_ips: 50
-  benign_txn_rate: 1.0
   heavy_tail_alpha: 2.2
+  user_join_rate: 0.3
+  user_leave_rate: 0.2
   hub_distribution:
     shared_nat_gateway:
       size: 30
       type: "ip"
+      category: carrier_nat
     public_kiosk:
       size: 15
       type: "device"
+      category: kiosk
 
 rings:
   - id: adv_hub_hiding
     type: shared_ip
     size: 4
-    shared_attribute: "ip_nat_gateway"
+    shared_attribute: "shared_nat_gateway"
     spawn_time_s: 10
     evasion: hub_hiding
   - id: adv_low_slow
@@ -37,9 +40,34 @@ rings:
     size: 4
     spawn_time_s: 35
     evasion: identity_rotation
+  - id: adv_decoy
+    type: smurfing_fan_in
+    size: 6
+    spawn_time_s: 40
+    evasion: decoy_edges
   - id: adv_adaptive
     type: shared_device
     size: 4
     shared_attribute: "dev_adv_adaptive"
     spawn_time_s: 50
     evasion: adaptive
+
+random_rings:
+  rate_per_min: 1.5
+  types: [shared_device, shared_card, shared_ip, money_cycle, layered_chain, mixed_attribute]
+  size_min: 3
+  size_max: 6
+  evasion_weights:
+    none: 1.0
+    hub_hiding: 1.0
+    low_and_slow: 1.0
+    identity_rotation: 1.0
+    decoy_edges: 1.0
+    adaptive: 1.0
+  active_duration_s: [20, 50]
+
+adaptive_attacker:
+  penalty: 0.5
+  respawn_delay_s: 5
+  max_rings: 6
+  strategies: [hub_hiding, low_and_slow, identity_rotation, decoy_edges]

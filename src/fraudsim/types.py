@@ -64,12 +64,28 @@ class EventType(StrEnum):
     DEVICE_LINK = "device_link"
     CARD_LINK = "card_link"
     IP_LINK = "ip_link"
+    ATTRIBUTE_UNLINK = "attribute_unlink"
     TRANSACTION = "transaction"
+    # Ring lifecycle types below are recorded in the ground-truth ledger only.
+    # They are never published on the event bus (see GROUND_TRUTH_ONLY_EVENTS).
     RING_SPAWN = "ring_spawn"
     RING_GROW = "ring_grow"
     RING_ACTIVATE = "ring_activate"
     RING_MUTATE = "ring_mutate"
     RING_DISSOLVE = "ring_dissolve"
+
+
+# Event types that carry ground truth. The simulator must never emit these on the
+# observable stream; detectors only ever see the remaining (observable) types.
+GROUND_TRUTH_ONLY_EVENTS = frozenset(
+    {
+        EventType.RING_SPAWN,
+        EventType.RING_GROW,
+        EventType.RING_ACTIVATE,
+        EventType.RING_MUTATE,
+        EventType.RING_DISSOLVE,
+    }
+)
 
 
 class RingType(StrEnum):
@@ -208,6 +224,9 @@ class GroundTruthRing:
     dissolve_ts: datetime | None = None
     member_history: list[tuple[datetime, str, str]] = field(default_factory=list)
     # (timestamp, action="join"|"leave", user_id)
+    # Simulator-side detail: anchors, cycle order, the concrete strategy an adaptive
+    # attacker picked, mutation count, flags observed by the attacker.
+    details: dict[str, Any] = field(default_factory=dict)
 
     def add_member(self, user_id: str, ts: datetime) -> None:
         self.members.add(user_id)
@@ -232,6 +251,7 @@ class GroundTruthRing:
                 {"ts": ts.isoformat(), "action": action, "user_id": uid}
                 for ts, action, uid in self.member_history
             ],
+            "details": self.details,
         }
 
 

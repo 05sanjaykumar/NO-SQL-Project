@@ -20,10 +20,7 @@ from fraudsim.types import Event, EventType, GroundTruthRing, RingType
 @pytest.fixture
 def sample_event() -> Event:
     """Fixture providing a sample user join event."""
-    return Event(
-        event_type=EventType.USER_JOIN,
-        payload={"user_id": "u99", "name": "Test User"},
-    )
+    return Event.now(event_type=EventType.USER_JOIN, payload={"user_id": "u99", "name": "Test"})
 
 
 @pytest.fixture
@@ -32,7 +29,6 @@ def sample_gt_ring() -> GroundTruthRing:
     return GroundTruthRing(
         ring_id="ring_test_01",
         ring_type=RingType.SHARED_DEVICE,
-        initial_members={"u01", "u02", "u03", "u04"},
-        current_members={"u01", "u02", "u03", "u04"},
-        shared_attributes={"device_007"},
+        members={"u01", "u02", "u03", "u04"},
+        shared_attributes={"device": "device_007"},
     )

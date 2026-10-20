@@ -29,9 +29,62 @@ def api(host: str, port: int, reload: bool) -> None:
 @click.option("--scenario", default="baseline", help="Scenario configuration name")
 @click.option("--seed", default=42, help="RNG seed")
 @click.option("--speed", default=1.0, help="Simulation speed multiplier")
-def run(scenario: str, seed: int, speed: float) -> None:
-    """Run a simulation interactively."""
-    click.echo(f"Running simulation scenario={scenario}, seed={seed}, speed={speed}x")
+@click.option("--rate", default=None, type=float, help="Benign events per simulated second")
+@click.option("--duration", default=None, type=float, help="Override duration (sim seconds)")
+def run(scenario: str, seed: int, speed: float, rate: float | None, duration: float | None) -> None:
+    """Stream a scenario in real time (speed-scaled), printing each event as JSON."""
+    import asyncio
+    import json
+
+    from fraudsim.simulator.event_generator import EventGenerator
+    from fraudsim.simulator.player import StreamPlayer
+    from fraudsim.simulator.scenario_loader import load_scenario
+    from fraudsim.stream.event_bus import AsyncQueueBus
+    from fraudsim.types import Event, new_run_id
+
+    gen = EventGenerator(seed=seed, run_id=new_run_id(), config=load_scenario(scenario))
+    if rate is not None:
+        gen.set_rate(rate)
+
+    def show(event: Event) -> None:
+        click.echo(json.dumps(event.to_dict(), separators=(",", ":")))
+
+    async def _play() -> None:
+        bus = AsyncQueueBus(maxsize=0)
+        player = StreamPlayer(gen, bus, speed=speed, until_s=duration, on_event=show)
+        stats = await player.run()
+        click.echo(json.dumps({"player": stats.to_dict(), "digest": gen.digest}), err=True)
+
+    asyncio.run(_play())
+
+
+@main.command()
+@click.option("--scenario", default="baseline", help="Scenario configuration name")
+@click.option("--seed", default=42, help="RNG seed")
+@click.option("--duration", default=None, type=float, help="Override duration (sim seconds)")
+@click.option("--out", default="runs/", help="Directory for run artefacts")
+def simulate(scenario: str, seed: int, duration: float | None, out: str) -> None:
+    """Run the simulator headless and write events + ground truth to runs/<run_id>/."""
+    import json
+    from pathlib import Path
+
+    from fraudsim.simulator.recorder import run_simulation
+
+    manifest = run_simulation(scenario, seed, Path(out), duration_s=duration)
+    keys = (
+        "run_id",
+        "scenario",
+        "seed",
+        "config_hash",
+        "sim_time_s",
+        "events",
+        "events_by_type",
+        "rings",
+        "stream_digest",
+        "generation_events_per_s",
+        "run_dir",
+    )
+    click.echo(json.dumps({k: manifest[k] for k in keys}, indent=2))
 
 
 @main.command()

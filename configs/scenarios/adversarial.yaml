@@ -1,0 +1,45 @@
+name: adversarial
+description: "Adversarial evasion evaluation with adaptive attacker, hub-hiding, low-and-slow, and decoy edges"
+version: "1.0"
+
+simulation:
+  duration_seconds: 90
+  target_event_rate: 30.0
+  num_users: 120
+  num_devices: 60
+  num_cards: 60
+  num_ips: 50
+  benign_txn_rate: 1.0
+  heavy_tail_alpha: 2.2
+  hub_distribution:
+    shared_nat_gateway:
+      size: 30
+      type: "ip"
+    public_kiosk:
+      size: 15
+      type: "device"
+
+rings:
+  - id: adv_hub_hiding
+    type: shared_ip
+    size: 4
+    shared_attribute: "ip_nat_gateway"
+    spawn_time_s: 10
+    evasion: hub_hiding
+  - id: adv_low_slow
+    type: money_cycle
+    size: 5
+    length: 5
+    spawn_time_s: 20
+    evasion: low_and_slow
+  - id: adv_mixed
+    type: mixed_attribute
+    size: 4
+    spawn_time_s: 35
+    evasion: identity_rotation
+  - id: adv_adaptive
+    type: shared_device
+    size: 4
+    shared_attribute: "dev_adv_adaptive"
+    spawn_time_s: 50
+    evasion: adaptive

@@ -1,0 +1,63 @@
+"""
+API request and response schemas (Pydantic models).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class HealthResponse(BaseModel):
+    status: str = "ok"
+    version: str = "0.1.0"
+    neo4j_connected: bool = False
+
+
+class RunStatusResponse(BaseModel):
+    run_id: str
+    status: str  # idle, running, paused, stopped
+    scenario: str
+    seed: int
+    events_emitted: int = 0
+    rings_detected: int = 0
+    speed_multiplier: float = 1.0
+
+
+class StartRunRequest(BaseModel):
+    scenario: str = "baseline"
+    seed: int = 42
+    speed_multiplier: float = 1.0
+    hub_weight_enabled: bool = True
+    hub_degree_cap: float | None = None
+
+
+class AnalystFeedbackRequest(BaseModel):
+    action: str  # "confirm" or "dismiss"
+    analyst_id: str = "analyst_1"
+    note: str = ""
+
+
+class RingDetailResponse(BaseModel):
+    ring_id: str
+    status: str
+    ring_type: str
+    score: float
+    members: list[str]
+    features: dict[str, Any] = Field(default_factory=dict)
+    explanation: dict[str, Any] = Field(default_factory=dict)
+    created_at: str
+    updated_at: str
+
+
+class MetricsResponse(BaseModel):
+    precision: float = 0.0
+    recall: float = 0.0
+    f1: float = 0.0
+    latency_p50_ms: float = 0.0
+    latency_p95_ms: float = 0.0
+    latency_p99_ms: float = 0.0
+    throughput_events_per_sec: float = 0.0
+    total_events: int = 0
+    active_rings: int = 0

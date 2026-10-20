@@ -1,0 +1,46 @@
+name: baseline
+description: "Standard balanced scenario replicating seed.py ground truth plus streaming transactions"
+version: "1.0"
+
+simulation:
+  duration_seconds: 60
+  target_event_rate: 10.0  # events per second
+  num_users: 30
+  num_devices: 18
+  num_cards: 18
+  num_ips: 20
+  benign_txn_rate: 0.5
+  heavy_tail_alpha: 2.5
+  hub_distribution:
+    office_wifi:
+      size: 12
+      type: "ip"
+    carrier_nat:
+      size: 8
+      type: "ip"
+
+rings:
+  - id: ring_a
+    type: shared_device
+    size: 4
+    shared_attribute: "device_007"
+    spawn_time_s: 5
+    evasion: none
+  - id: ring_b
+    type: shared_card
+    size: 3
+    shared_attribute: "card_005"
+    spawn_time_s: 15
+    evasion: none
+  - id: ring_c
+    type: shared_ip
+    size: 3
+    shared_attribute: "ip_004"
+    spawn_time_s: 25
+    evasion: none
+  - id: ring_cycle
+    type: money_cycle
+    size: 3
+    length: 3
+    spawn_time_s: 35
+    evasion: none

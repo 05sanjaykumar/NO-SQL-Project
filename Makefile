@@ -1,0 +1,103 @@
+.PHONY: help install dev lint test test-unit test-integration experiment demo clean
+
+PYTHON ?= python
+DOCKER ?= docker compose
+SEEDS  ?= 5
+SCENARIO ?= baseline
+
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+# ─── Setup ────────────────────────────────────────────────────────────
+
+install: ## Install the package in editable mode
+	pip install -e ".[dev]"
+
+dev: ## Install with all optional dependencies
+	pip install -e ".[dev,redis]"
+
+# ─── Docker ───────────────────────────────────────────────────────────
+
+up: ## Start all services
+	$(DOCKER) up -d
+
+down: ## Stop all services
+	$(DOCKER) down
+
+reset: ## Stop services and wipe volumes
+	$(DOCKER) down -v
+
+logs: ## Tail service logs
+	$(DOCKER) logs -f
+
+# ─── Quality ──────────────────────────────────────────────────────────
+
+lint: ## Run ruff linter and formatter check
+	$(PYTHON) -m ruff check src/ tests/
+	$(PYTHON) -m ruff format --check src/ tests/
+
+format: ## Auto-format code
+	$(PYTHON) -m ruff check --fix src/ tests/
+	$(PYTHON) -m ruff format src/ tests/
+
+typecheck: ## Run mypy type checker
+	$(PYTHON) -m mypy src/fraudsim/
+
+# ─── Tests ────────────────────────────────────────────────────────────
+
+test: ## Run all tests
+	$(PYTHON) -m pytest tests/ -v --tb=short
+
+test-unit: ## Run unit tests only (no Neo4j needed)
+	$(PYTHON) -m pytest tests/ -v --tb=short -m "not integration and not slow"
+
+test-integration: ## Run integration tests (needs running Neo4j)
+	$(PYTHON) -m pytest tests/ -v --tb=short -m integration
+
+test-smoke: ## Quick smoke test: 60-second headless scenario
+	$(PYTHON) -m pytest tests/test_integration.py -v --tb=short -k smoke -m integration
+
+# ─── Seed (legacy) ────────────────────────────────────────────────────
+
+seed: ## Run the original seed.py to load the demo graph
+	$(PYTHON) seed.py
+
+# ─── Experiments ──────────────────────────────────────────────────────
+
+experiment: ## Run a full experiment: make experiment SCENARIO=adversarial SEEDS=20
+	$(PYTHON) -m fraudsim.experiments.runner \
+		--scenario $(SCENARIO) \
+		--seeds $(SEEDS) \
+		--output-dir results/
+
+experiment-all: ## Run all standard experiments
+	@for s in baseline high_noise hub_heavy adversarial scale_sweep drift; do \
+		echo "=== Running scenario: $$s ===" ; \
+		$(MAKE) experiment SCENARIO=$$s SEEDS=$(SEEDS) ; \
+	done
+
+figures: ## Generate paper figures from experiment results
+	$(PYTHON) -m fraudsim.experiments.plotting --results-dir results/ --output-dir docs/paper/figures/
+
+tables: ## Generate LaTeX tables from experiment results
+	$(PYTHON) -m fraudsim.experiments.latex_export --results-dir results/ --output-dir docs/paper/tables/
+
+# ─── Demo ─────────────────────────────────────────────────────────────
+
+demo: up ## Start services and launch the live dashboard
+	@echo "Waiting for Neo4j to be ready..."
+	@$(PYTHON) -c "import time; time.sleep(5)"
+	$(PYTHON) -m fraudsim.api.main &
+	@echo ""
+	@echo "Dashboard:  http://localhost:5173"
+	@echo "API docs:   http://localhost:8000/docs"
+	@echo "Neo4j:      http://localhost:7474"
+	@echo ""
+
+# ─── Cleanup ──────────────────────────────────────────────────────────
+
+clean: ## Remove build artifacts and caches
+	rm -rf build/ dist/ *.egg-info .pytest_cache .mypy_cache .ruff_cache
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	rm -rf results/ runs/

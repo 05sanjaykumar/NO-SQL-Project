@@ -1,0 +1,103 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fraudsim"
+version = "0.1.0"
+description = "Hub-Aware Incremental Fraud Ring Detection on Streaming Transaction Graphs"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Sanjay Kumar S", email = "23BCE1248@vitap.ac.in" },
+    { name = "Roshan Parveen", email = "23BCE1256@vitap.ac.in" },
+]
+
+dependencies = [
+    "neo4j>=5.26",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "websockets>=13.0",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "structlog>=24.4",
+    "pyyaml>=6.0",
+    "numpy>=1.26",
+    "scipy>=1.14",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    "matplotlib>=3.9",
+    "orjson>=3.10",
+    "pyarrow>=18.0",
+    "prometheus-client>=0.21",
+    "httpx>=0.27",
+    "tenacity>=9.0",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "pytest-timeout>=2.3",
+    "ruff>=0.7",
+    "mypy>=1.12",
+    "hypothesis>=6.112",
+]
+gnn = [
+    "torch>=2.4",
+    "torch-geometric>=2.6",
+]
+redis = [
+    "redis[hiredis]>=5.2",
+]
+
+[project.scripts]
+fraudsim = "fraudsim.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fraudsim"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "N",         # pep8-naming
+    "UP",        # pyupgrade
+    "B",         # flake8-bugbear
+    "SIM",       # flake8-simplify
+    "RUF",       # ruff-specific
+]
+ignore = [
+    "TC001", "TC002", "TC003",  # runtime evaluation of dataclasses and types
+    "E402",                     # sys.path modification in tests/conftest.py
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fraudsim"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: requires running Neo4j",
+    "slow: takes more than 10 seconds",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["neo4j.*", "cytoscape.*"]
+ignore_missing_imports = true

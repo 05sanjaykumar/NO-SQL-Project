@@ -1,0 +1,38 @@
+name: scale_sweep
+description: "Large scale sweep scenario for benchmarking latency and throughput against increasing graph sizes"
+version: "1.0"
+
+simulation:
+  duration_seconds: 120
+  target_event_rate: 100.0
+  num_users: 1000
+  num_devices: 400
+  num_cards: 400
+  num_ips: 300
+  benign_txn_rate: 5.0
+  heavy_tail_alpha: 2.1
+  hub_distribution:
+    cloud_proxy:
+      size: 150
+      type: "ip"
+    workplace_network:
+      size: 80
+      type: "ip"
+
+rings:
+  - id: sweep_ring_1
+    type: shared_device
+    size: 6
+    spawn_time_s: 15
+    evasion: none
+  - id: sweep_ring_2
+    type: money_cycle
+    size: 4
+    length: 4
+    spawn_time_s: 40
+    evasion: none
+  - id: sweep_ring_3
+    type: smurfing_fan_in
+    size: 8
+    spawn_time_s: 70
+    evasion: none

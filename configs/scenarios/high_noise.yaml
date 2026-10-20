@@ -1,0 +1,34 @@
+name: high_noise
+description: "High noise transaction environment with heavy benign activity to test false positive resistance"
+version: "1.0"
+
+simulation:
+  duration_seconds: 60
+  target_event_rate: 50.0
+  num_users: 150
+  num_devices: 80
+  num_cards: 90
+  num_ips: 100
+  benign_txn_rate: 2.0
+  heavy_tail_alpha: 2.1
+  hub_distribution:
+    large_campus_wifi:
+      size: 45
+      type: "ip"
+    family_device:
+      size: 6
+      type: "device"
+
+rings:
+  - id: noise_ring_1
+    type: shared_device
+    size: 4
+    shared_attribute: "device_noise_01"
+    spawn_time_s: 10
+    evasion: decoy_edges
+  - id: noise_ring_2
+    type: money_cycle
+    size: 4
+    length: 4
+    spawn_time_s: 20
+    evasion: none

@@ -1,0 +1,33 @@
+name: drift
+description: "Concept drift scenario where benign hub-size distribution and transaction bursts shift mid-run"
+version: "1.0"
+
+simulation:
+  duration_seconds: 90
+  target_event_rate: 40.0
+  num_users: 200
+  num_devices: 100
+  num_cards: 100
+  num_ips: 80
+  benign_txn_rate: 1.5
+  heavy_tail_alpha: 2.3
+  hub_distribution:
+    initial_hub:
+      size: 20
+      type: "ip"
+  drift:
+    trigger_time_s: 45
+    new_hub_size: 70
+    shift_multiplier: 2.5
+
+rings:
+  - id: pre_drift_ring
+    type: shared_device
+    size: 4
+    spawn_time_s: 15
+    evasion: none
+  - id: post_drift_ring
+    type: shared_ip
+    size: 5
+    spawn_time_s: 60
+    evasion: hub_hiding

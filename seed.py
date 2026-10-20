@@ -35,16 +35,16 @@ ips = [f"ip_{i:03d}" for i in range(1, N_IPS + 1)]
 
 # ---------------------------------------------------------------- planted rings
 
-RING_A_USERS = ["u01", "u02", "u03", "u04"]      # all share one device
+RING_A_USERS = ["u01", "u02", "u03", "u04"]  # all share one device
 RING_A_DEVICE = "device_007"
 
-RING_B_USERS = ["u10", "u11", "u12"]             # all share one card
+RING_B_USERS = ["u10", "u11", "u12"]  # all share one card
 RING_B_CARD = "card_005"
 
-RING_C_USERS = ["u27", "u28", "u29"]             # all share one IP
+RING_C_USERS = ["u27", "u28", "u29"]  # all share one IP
 RING_C_IP = "ip_004"
 
-CYCLE_USERS = ["u21", "u22", "u23"]              # money goes round in a loop
+CYCLE_USERS = ["u21", "u22", "u23"]  # money goes round in a loop
 
 # Not fraud. Office wifi. This is what the degree cap in Q3 has to filter out.
 HUB_IP = "ip_001"
@@ -94,7 +94,7 @@ def build_graph():
     noise_cards = assign_with_cap(free_cards, len(users), cap=2)
     noise_ips = assign_with_cap(free_ips, len(users), cap=2)
 
-    for u, dev, card, ip in zip(users, noise_devices, noise_cards, noise_ips):
+    for u, dev, card, ip in zip(users, noise_devices, noise_cards, noise_ips, strict=True):
         used_device[u] = dev
         has_card[u] = card
         logged_in_from[u] = [ip]
@@ -153,10 +153,7 @@ def build_graph():
         made += 1
 
     return {
-        "users": [
-            {"user_id": u, "name": f"User {u[1:]}", "ring": RING_OF.get(u)}
-            for u in users
-        ],
+        "users": [{"user_id": u, "name": f"User {u[1:]}", "ring": RING_OF.get(u)} for u in users],
         "devices": [{"device_id": d} for d in devices],
         "cards": [{"card_id": c, "issuer": random.choice(["visa", "mastercard"])} for c in cards],
         "ips": [{"ip": i} for i in ips],
@@ -206,7 +203,8 @@ LOAD = [
         "txns",
         """UNWIND $rows AS r
            MATCH (s:User {user_id: r.sender}), (x:User {user_id: r.receiver})
-           CREATE (s)-[:PERFORMED]->(t:Transaction {txn_id: r.txn_id, amount: r.amount, ring: r.ring})
+           CREATE (s)-[:PERFORMED]->(t:Transaction {
+               txn_id: r.txn_id, amount: r.amount, ring: r.ring})
            CREATE (t)-[:SENT_TO]->(x)""",
     ),
 ]

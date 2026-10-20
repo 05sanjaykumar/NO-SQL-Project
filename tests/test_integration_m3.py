@@ -133,3 +133,14 @@ def test_gds_community_on_graph_without_pairs(client: Neo4jClient) -> None:
     first = EventGenerator(seed=1, run_id="it", config=load_scenario("baseline")).generate()[:4]
     neo.apply(first)  # one user and their own attributes: no user-user pairs
     assert CommunityDetector(store=neo).detect(InMemoryGraphStore().full_view(0, 0)) == []
+
+
+def test_profiled_queries_report_db_hits(client: Neo4jClient) -> None:
+    client.wipe()
+    neo = Neo4jGraphStore(client, profile_every=1)
+    events = EventGenerator(seed=2, run_id="it", config=load_scenario("baseline")).generate()
+    neo.apply(events)
+    now = events[-1].ts.timestamp()
+    view = neo.view({"u000001", "u000002"}, now - 900, now)
+    assert view.users
+    assert neo.profiled_queries >= 1 and neo.db_hits > 0

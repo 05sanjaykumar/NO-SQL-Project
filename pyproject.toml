@@ -28,6 +28,7 @@ dependencies = [
     "pandas>=2.2",
     "scikit-learn>=1.5",
     "networkx>=3.2",
+    "psutil>=5.9",
     "matplotlib>=3.9",
     "orjson>=3.10",
     "pyarrow>=18.0",

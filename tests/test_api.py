@@ -64,6 +64,10 @@ def test_metrics_and_prometheus(client: TestClient):
     resp = client.get("/metrics/summary")
     assert resp.status_code == 200
     assert "f1" in resp.json()
+    # Without a run there is nothing to measure: no placeholder numbers.
+    client.post("/runs/stop")
+    empty = client.get("/metrics/summary").json()
+    assert empty["precision"] is None and empty["latency_p50_ms"] is None
 
     prom_resp = client.get("/metrics")
     assert prom_resp.status_code == 200
@@ -121,3 +125,18 @@ def test_live_run_detects_rings(client: TestClient):
     one = client.get(f"/rings/{rings[0]['ring_id']}").json()
     assert one["members"] and one["explanation"]["detectors"]
     assert client.get("/status").json()["rings_detected"] >= 1
+
+
+def test_live_metrics_come_from_the_run(client: TestClient):
+    client.post("/runs/start", json={"scenario": "baseline", "seed": 3, "speed_multiplier": 0})
+    for _ in range(300):
+        if client.get("/status").json()["status"] == "finished":
+            break
+        time.sleep(0.05)
+    time.sleep(0.6)
+    m = client.get("/metrics/summary").json()
+    assert m["recall"] is not None and 0.0 <= m["recall"] <= 1.0
+    assert m["latency_p50_ms"] is not None and m["latency_p50_ms"] > 0
+    assert m["summary"]["true_rings"] == 4
+    prom = client.get("/metrics").text
+    assert 'fraudsim_run_ring_recall{run_id="' in prom

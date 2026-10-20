@@ -23,6 +23,7 @@ from fraudsim.api.schemas import (
     StartRunRequest,
 )
 from fraudsim.api.state import state
+from fraudsim.metrics.exporters import prometheus_text
 from fraudsim.simulator.scenario_loader import list_scenarios
 from fraudsim.types import new_run_id
 
@@ -219,24 +220,44 @@ async def analyst_feedback(ring_id: str, feedback: AnalystFeedbackRequest) -> di
     }
 
 
+def _live_summary() -> dict[str, Any]:
+    if state.live is None or not state.live.engine.reports:
+        return {}
+    return state.live.metrics().summary
+
+
 @app.get("/metrics/summary", response_model=MetricsResponse)
 async def get_metrics_summary() -> MetricsResponse:
+    """Metrics of the current run, computed from its batch reports and ground truth."""
+    s = _live_summary()
+    if not s:
+        return MetricsResponse(total_events=state.events_emitted, run_id=state.run_id)
+    det = s["latency_ms"]["detect_per_batch"]
     return MetricsResponse(
-        precision=1.0 if state.active_rings else 0.0,
-        recall=1.0 if state.active_rings else 0.0,
-        f1=1.0 if state.active_rings else 0.0,
-        latency_p50_ms=4.2,
-        latency_p95_ms=12.5,
-        latency_p99_ms=25.8,
-        throughput_events_per_sec=120.0,
+        run_id=state.run_id,
+        sim_time_s=state.live.snapshot()["sim_time_s"] if state.live else None,
+        precision=s["ring"]["precision"],
+        recall=s["ring"]["recall"],
+        f1=s["ring"]["f1"],
+        rings_detected=s["rings_detected"],
+        rings_missed=s["rings_missed"],
+        false_positive_rings=s["false_positive_rings"],
+        user_precision=s["user"]["precision"],
+        user_recall=s["user"]["recall"],
+        time_to_detect_p50_s=s["time_to_detect_s"]["p50"],
+        latency_p50_ms=det["p50"],
+        latency_p95_ms=det["p95"],
+        latency_p99_ms=det["p99"],
+        throughput_events_per_sec=s["throughput"]["events_per_s"],
         total_events=state.events_emitted,
-        active_rings=len(state.active_rings),
+        active_rings=len(state.live.engine.tracker.live()) if state.live else 0,
+        summary=s,
     )
 
 
 @app.get("/metrics", response_class=PlainTextResponse)
 async def prometheus_metrics() -> PlainTextResponse:
-    """Prometheus-style metrics export endpoint."""
+    """Prometheus-style metrics: run controls plus every numeric metric of the live run."""
     lines = [
         "# HELP fraudsim_events_total Total events processed",
         "# TYPE fraudsim_events_total counter",
@@ -248,7 +269,11 @@ async def prometheus_metrics() -> PlainTextResponse:
         "# TYPE fraudsim_speed_multiplier gauge",
         f"fraudsim_speed_multiplier {state.speed_multiplier}",
     ]
-    return PlainTextResponse("\n".join(lines) + "\n")
+    text = "\n".join(lines) + "\n"
+    summary = _live_summary()
+    if summary:
+        text += prometheus_text(summary, prefix="fraudsim_run", labels=f'run_id="{state.run_id}"')
+    return PlainTextResponse(text)
 
 
 @app.websocket("/ws")

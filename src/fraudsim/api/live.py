@@ -116,6 +116,12 @@ class LiveRun:
                 }
             )
 
+    def metrics(self) -> Any:
+        """Evaluate the run so far against the simulator's ground truth."""
+        from fraudsim.detectors.runner import evaluate_detection
+
+        return evaluate_detection(self.generator, self.engine, self.scoring.scorer is not None)
+
     def rings(self) -> list[dict[str, Any]]:
         return [ring_payload(r) for r in self.engine.tracker.rings.values()]
 

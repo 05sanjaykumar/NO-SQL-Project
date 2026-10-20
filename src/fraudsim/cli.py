@@ -137,8 +137,40 @@ def detect(
         duration_s=duration,
     )
     m = result.manifest
-    keys = ("run_id", "scenario", "seed", "backend", "config_hash", "events", "detection")
+    keys = (
+        "run_id",
+        "scenario",
+        "seed",
+        "backend",
+        "config_hash",
+        "events",
+        "detection",
+        "metrics",
+    )
     click.echo(json.dumps({k: m[k] for k in keys} | {"run_dir": m.get("run_dir")}, indent=2))
+
+
+@main.command("compare-latency")
+@click.option("--scenario", default="scale_sweep")
+@click.option("--seed", default=42)
+@click.option("--backend", default="memory", type=click.Choice(["memory", "neo4j"]))
+@click.option("--duration", default=None, type=float)
+@click.option("--out", default=None, help="Write the comparison JSON here")
+def compare_latency(
+    scenario: str, seed: int, backend: str, duration: float | None, out: str | None
+) -> None:
+    """Incremental vs full recomputation on the same stream (latency + accuracy)."""
+    import json
+    from pathlib import Path
+
+    from fraudsim.detectors.runner import compare_modes
+
+    result = compare_modes(scenario, seed, backend=backend, duration_s=duration)
+    text = json.dumps(result, indent=2)
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(text, encoding="utf-8")
+    click.echo(text)
 
 
 @main.command("demo-story")

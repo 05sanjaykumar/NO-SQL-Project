@@ -482,3 +482,33 @@ def test_far_hops_do_not_cross_hubs() -> None:
     near = s.expand({"x"}, k=2, max_fanout=100, since_t=0, far_fanout=10)
     assert set(hub_a) <= near and "b01" in near and not set(hub_b[1:]) & near
     assert set(hub_b) <= s.expand({"x"}, k=3, max_fanout=100, since_t=0)  # no far cap
+
+
+def test_detection_identical_across_hash_seeds() -> None:
+    """Set/hash iteration order must not leak into detection results."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[1] / "src"
+    code = (
+        "import sys, hashlib, logging, structlog; sys.path.insert(0, sys.argv[1]);"
+        "structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING));"
+        "from fraudsim.detectors.runner import run_detection;"
+        "r = run_detection('high_noise', 102, None, attacker_feedback=False);"
+        "rings = sorted((tuple(sorted(x.members)), x.status.value, round(x.score, 9))"
+        " for x in r.engine.tracker.rings.values());"
+        "print(hashlib.sha256(repr(rings).encode()).hexdigest())"
+    )
+    digests = set()
+    for hash_seed in ("0", "1", "7"):
+        out = subprocess.run(
+            [sys.executable, "-c", code, str(src)],
+            env={**os.environ, "PYTHONHASHSEED": hash_seed},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        digests.add(out.stdout.strip().splitlines()[-1])
+    assert len(digests) == 1

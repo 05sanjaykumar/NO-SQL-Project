@@ -124,3 +124,42 @@ The page shows:
 Every number on the page comes from that run. The page shows the run_id,
 seed, scenario hash and stream digest. Seed 7 is used neither for training
 nor for testing the model.
+
+## Milestone 4 results (2026-10-20)
+
+Both models were trained by `fraudsim train-scorer` on the same data:
+- Six scenarios; training seeds 101–110, test seeds 201–205.
+- 5,812 rows for fitting, 3,133 for calibration, 4,516 for testing (984
+  positive).
+- Both training logs list identical per-run row counts and stream digests,
+  which confirms the pipeline is reproducible across processes.
+
+Each `.json` next to a model lists every run_id it used.
+
+| Model | training_id | Test ROC AUC | Test PR AUC | Brier | ECE |
+|---|---|---|---|---|---|
+| logistic regression (default) | `dd98f740ea8c` | 0.982 | 0.908 | 0.046 | 0.029 |
+| gradient boosting | `4d7c1774b78f` | 0.998 | 0.988 | 0.015 | 0.011 |
+
+**Caveats:**
+- These are snapshot-level scores. One ring contributes a row every time it
+  changes, so rows are correlated. Ring-level precision and recall come in
+  Milestone 5.
+- The logistic model is well calibrated near 0 and 1 but overconfident in the
+  middle buckets. On the test seeds, its 0.8–0.9 bucket was fraud 67% of the
+  time. Every explanation shows the observed rate of its bucket.
+- Gradient boosting separates better. Logistic regression stays the default
+  because its contributions and counterfactuals are exact.
+
+**Demo run** `00434da7845b` (seed 7, logistic model). The same 2,512 events
+went through each approach:
+
+| Approach | Rings caught | False rings | Innocent users flagged |
+|---|---|---|---|
+| Rules, cap 10 | 2 / 3 | 23 | 52 |
+| Rules, cap 100 | 2 / 3 | 24 | 74 |
+| Hub-aware + risk model | 3 / 3 | 2 | 8 |
+
+The cap rules catch the office ring only through Q3: three of its members
+happen to form a 3-cycle of transfers. The shared-IP query (Q4b) skips it
+because of the cap.

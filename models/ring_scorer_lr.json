@@ -1,0 +1,1082 @@
+{
+  "model_type": "logistic_regression",
+  "feature_names": [
+    "size",
+    "density",
+    "share_device",
+    "share_card",
+    "share_ip",
+    "hub_adjusted_weight",
+    "cycle_present",
+    "cycle_length",
+    "temporal_burstiness",
+    "account_age_similarity",
+    "account_age_min",
+    "internal_txns_per_member",
+    "amount_mean_log",
+    "amount_cv",
+    "near_threshold_frac",
+    "growth_rate",
+    "risk_signal_fraction",
+    "hub_exposure",
+    "n_detectors"
+  ],
+  "train": {
+    "training_id": "dd98f740ea8c",
+    "scenarios": [
+      "baseline",
+      "high_noise",
+      "hub_heavy",
+      "adversarial",
+      "drift",
+      "scale_sweep"
+    ],
+    "scenario_hashes": {
+      "baseline": "8c6300432edfabdb",
+      "high_noise": "7f768d989b7d51e6",
+      "hub_heavy": "031690a6797d4592",
+      "adversarial": "e348c3eccc50e4bb",
+      "drift": "dbaf6281ea4c2b23",
+      "scale_sweep": "9ad2094db780f500"
+    },
+    "train_seeds": [
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110
+    ],
+    "test_seeds": [
+      201,
+      202,
+      203,
+      204,
+      205
+    ],
+    "fit_fraction": 0.7,
+    "label": "Jaccard(members, any ground-truth ring's all-time members) >= 0.5",
+    "rows": {
+      "fit": 5812,
+      "calibration": 3133,
+      "test": 4516
+    },
+    "runs": [
+      {
+        "scenario": "baseline",
+        "seed": 101,
+        "run_id": "639b87d84b11",
+        "config_hash": "91c9bf17f7035d21",
+        "stream_digest": "51f2d3b856ba334a036d694cab619c9e996a9ce484566db5e5cde10e3d69f94b",
+        "rows": 46,
+        "positives": 8,
+        "split": "train"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 102,
+        "run_id": "be5ee09588ed",
+        "config_hash": "93bec6047a52bd94",
+        "stream_digest": "34583d9256a72822881a1b89a28532375b438d0532aa4c81ca5d41d8dc12c355",
+        "rows": 41,
+        "positives": 12,
+        "split": "train"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 103,
+        "run_id": "e6342c549604",
+        "config_hash": "59204f78bda4f77b",
+        "stream_digest": "fedd7c10872dacb07447eff356669a3913b90fee17dd89a4dee1ee0447aa3393",
+        "rows": 41,
+        "positives": 13,
+        "split": "train"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 104,
+        "run_id": "ba6cafe5ad0a",
+        "config_hash": "57fc6a1003e56845",
+        "stream_digest": "1fc7521ea043e972163be5d535ab05238f2a7b7dffb35624382fe5a10025d0ce",
+        "rows": 37,
+        "positives": 13,
+        "split": "train"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 105,
+        "run_id": "c32de5811bf9",
+        "config_hash": "45aa8775618c343b",
+        "stream_digest": "7c3f545fb9a7c93d4c1303ca82912a1a326395b9c8a88f873375f4a02fc864b5",
+        "rows": 44,
+        "positives": 11,
+        "split": "train"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 106,
+        "run_id": "d1956e596409",
+        "config_hash": "6a6e7dc947138631",
+        "stream_digest": "8d53367d8070c92a06209f3e95a03efc481c5a58c56ad94db9ec9326c46e8225",
+        "rows": 40,
+        "positives": 11,
+        "split": "train"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 107,
+        "run_id": "d34e56304b7d",
+        "config_hash": "b1f6f1b9d4319db2",
+        "stream_digest": "47f1a03426241c38662fbc758508f1a768c2004057eef28a03fe3e2e7b49393f",
+        "rows": 39,
+        "positives": 10,
+        "split": "train"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 108,
+        "run_id": "dc7b4a626fa1",
+        "config_hash": "624213a07cab5603",
+        "stream_digest": "30e9516b8295eae0438a43f18acec54f07d9403b149d31997fe66130b8414820",
+        "rows": 40,
+        "positives": 10,
+        "split": "train"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 109,
+        "run_id": "93bcadda3f62",
+        "config_hash": "7eae545562a8fb59",
+        "stream_digest": "9cfd451e597cc1a8e1ad62843deafa1a682ea33df4ae2894690d5e11db87c47a",
+        "rows": 39,
+        "positives": 9,
+        "split": "train"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 110,
+        "run_id": "360a9a3ba7a3",
+        "config_hash": "5ffc0f58ccd48689",
+        "stream_digest": "af748ab1df0e030199cde82ec031cd24c627ca44bbf8db02bd1bdf485471ad53",
+        "rows": 36,
+        "positives": 10,
+        "split": "train"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 201,
+        "run_id": "932ad1f77ba5",
+        "config_hash": "8f60223b82e175e1",
+        "stream_digest": "babc30ffba1aa7ffb8b7b50b5bfbc04fbfbcb87f85f7c1e8a3c7e6b3dec4ad5c",
+        "rows": 34,
+        "positives": 8,
+        "split": "test"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 202,
+        "run_id": "9573cc5615d2",
+        "config_hash": "7d15630d72118414",
+        "stream_digest": "6363a8f59a6cd7e279fa382f2556d8ae870e5c5bb8713750ded773c498e09996",
+        "rows": 31,
+        "positives": 11,
+        "split": "test"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 203,
+        "run_id": "27ab2c9cee77",
+        "config_hash": "5be025edeaa48c98",
+        "stream_digest": "ed0dc8812813ca30584dcf1cd67a712fbba8b2d2b293b437b5aa3bac16ad59be",
+        "rows": 41,
+        "positives": 14,
+        "split": "test"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 204,
+        "run_id": "256ec0bb9165",
+        "config_hash": "2f8f61bd5d065a9a",
+        "stream_digest": "0abc9f1972dd1551d0ec19be36346fcb402b655ced131ee39907377631634b80",
+        "rows": 37,
+        "positives": 13,
+        "split": "test"
+      },
+      {
+        "scenario": "baseline",
+        "seed": 205,
+        "run_id": "66622e373cf1",
+        "config_hash": "cf6247a4e2561a33",
+        "stream_digest": "99f83dfd24f68f9907370abdfafa4242df2e99cdbcd2ebeb565a15ada4571359",
+        "rows": 38,
+        "positives": 13,
+        "split": "test"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 101,
+        "run_id": "2f19c4f31807",
+        "config_hash": "0a6fdcfec5597bdf",
+        "stream_digest": "5f8f96486a2bf3f25e99132bbd6ce4013722b20ffcbc6953398a4f64dc74b247",
+        "rows": 124,
+        "positives": 14,
+        "split": "train"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 102,
+        "run_id": "6caabae00994",
+        "config_hash": "f3202206451a7316",
+        "stream_digest": "05a79799e615d16a63c4dea55b605c5cc1895d0f0630bc3af3eb9054410b9c37",
+        "rows": 196,
+        "positives": 23,
+        "split": "train"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 103,
+        "run_id": "fea288416705",
+        "config_hash": "9219dba03831a9d2",
+        "stream_digest": "c7af7e81cfb5b94c4dd102a60dc32d8b3644931dba18e073ea62cf963a09dc32",
+        "rows": 249,
+        "positives": 14,
+        "split": "train"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 104,
+        "run_id": "19fe6215628b",
+        "config_hash": "c18ed1172f48dd46",
+        "stream_digest": "44f9961d9f991593318676c17ab74b932822a21d958a7689ec9ca5c6aad88bc9",
+        "rows": 151,
+        "positives": 12,
+        "split": "train"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 105,
+        "run_id": "75c29a56f4bd",
+        "config_hash": "38d33c10588f51e3",
+        "stream_digest": "bb9ff2b4fb5b6d27c870218a3b9a5b4b7265951a59b3e99d266520f39eef1f58",
+        "rows": 190,
+        "positives": 18,
+        "split": "train"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 106,
+        "run_id": "7154d488069b",
+        "config_hash": "f82613d66694e776",
+        "stream_digest": "be7e4367652a259db73bbd4cb79758352e9ba57b318fbeb076700c9050ce3eeb",
+        "rows": 199,
+        "positives": 28,
+        "split": "train"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 107,
+        "run_id": "22b50e5aa0f7",
+        "config_hash": "43ecc1e16a7357e8",
+        "stream_digest": "b1c95a0dab6e499c68884c472f80ca4de96c00c63d5881d8310c8411e838772a",
+        "rows": 181,
+        "positives": 11,
+        "split": "train"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 108,
+        "run_id": "cbbee9d20c6f",
+        "config_hash": "ce54348b4007f574",
+        "stream_digest": "371767638b2c288a609f085a54e271873574b7e6151ba8d991c0183352d4eed4",
+        "rows": 192,
+        "positives": 18,
+        "split": "train"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 109,
+        "run_id": "62d42ca184a2",
+        "config_hash": "3d13c80d76496f66",
+        "stream_digest": "36e94463e9bfcb8355597da5ddb935478349b6241a1f68a90a37bbc95de8c229",
+        "rows": 149,
+        "positives": 11,
+        "split": "train"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 110,
+        "run_id": "aa4eede2fecc",
+        "config_hash": "a3b9ad1f6c92c33b",
+        "stream_digest": "2ab281b5448f21524c5b8cff5026b2967e0fc09171a8e030661898d6b9744563",
+        "rows": 241,
+        "positives": 35,
+        "split": "train"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 201,
+        "run_id": "d9fe41077e42",
+        "config_hash": "c0f7408108674f29",
+        "stream_digest": "d30300242225154ab1fddafc2ff0db43b375586ed24be94e04e20359eb892300",
+        "rows": 200,
+        "positives": 22,
+        "split": "test"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 202,
+        "run_id": "7dd35ae0f012",
+        "config_hash": "947ec8561f9d163e",
+        "stream_digest": "f5e0a4fb6efb1edb6744d88fbe0702885e1cb9ede208effecaaed896e28350f0",
+        "rows": 204,
+        "positives": 28,
+        "split": "test"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 203,
+        "run_id": "2c8b76b8aa2b",
+        "config_hash": "3425cd8b085992fb",
+        "stream_digest": "d0eeaa501a342c2e5d9f745a6520ff573597c0b824af4b4079c5dbaf8aee3496",
+        "rows": 146,
+        "positives": 22,
+        "split": "test"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 204,
+        "run_id": "bd51801b42e0",
+        "config_hash": "94b9f4d565a4e78e",
+        "stream_digest": "f0fb7496280e320593460bbb010fa6d58d590bcb68b662e13d98b83a7ebd6e30",
+        "rows": 199,
+        "positives": 38,
+        "split": "test"
+      },
+      {
+        "scenario": "high_noise",
+        "seed": 205,
+        "run_id": "bc835ed0e8a0",
+        "config_hash": "f96b02d9cf38a95a",
+        "stream_digest": "aa6def2251dea1712e3532ea258ddeeda2d5fd83ff5efa42ef1fc7b408bf1059",
+        "rows": 190,
+        "positives": 24,
+        "split": "test"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 101,
+        "run_id": "9cff5aa0dabe",
+        "config_hash": "45de4f8707caac28",
+        "stream_digest": "ccb126631fb99b5680136763201f28863fc9ed375eeb193759f82086e98a3641",
+        "rows": 86,
+        "positives": 9,
+        "split": "train"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 102,
+        "run_id": "70a6b0a251b3",
+        "config_hash": "a6b2b74802703494",
+        "stream_digest": "d0d319abf970605bf714d9eb7b7e4fad29470c47ae4f19eed9917f6ca535064f",
+        "rows": 98,
+        "positives": 7,
+        "split": "train"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 103,
+        "run_id": "62413f0b26e0",
+        "config_hash": "7434881982c54644",
+        "stream_digest": "c42f1ad6c66476cd0cd5bffc5ce7e3fd6d728ebb8a939444f792cbe934ef8d20",
+        "rows": 149,
+        "positives": 10,
+        "split": "train"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 104,
+        "run_id": "1de434f8d83f",
+        "config_hash": "1b215a7eeabbb8f7",
+        "stream_digest": "0a0d33ba76547b9657197b52bed79f1958ef5702ab222f4803a99028fb3381c3",
+        "rows": 100,
+        "positives": 14,
+        "split": "train"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 105,
+        "run_id": "d112459491c0",
+        "config_hash": "972b25a1c3649fe1",
+        "stream_digest": "76df451f26af0c02bed9431985a66fc7510e08236080482f0ece1cb99c3d3456",
+        "rows": 104,
+        "positives": 15,
+        "split": "train"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 106,
+        "run_id": "9cdfd6fd5743",
+        "config_hash": "216e0fa57e23b21d",
+        "stream_digest": "1586d9ff88c11a865cd88485273152acdbfc5025649afc3f43deb7e867abd4f6",
+        "rows": 116,
+        "positives": 10,
+        "split": "train"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 107,
+        "run_id": "0de743b0ae41",
+        "config_hash": "a27dd5cd029d6b7a",
+        "stream_digest": "5daef4e0d310f50b91e448d545f82315f129add8ac8261c1756745dadd83b94b",
+        "rows": 135,
+        "positives": 10,
+        "split": "train"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 108,
+        "run_id": "e923af8f2f86",
+        "config_hash": "44a0db97921d5907",
+        "stream_digest": "6b314b03514b5e882aeacfe0b7127434375991c009203bfc77a0ec4139ad29bc",
+        "rows": 115,
+        "positives": 16,
+        "split": "train"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 109,
+        "run_id": "77ec0c21dac9",
+        "config_hash": "4c3507f38692fb9a",
+        "stream_digest": "4644c6c83fcdf8e5ebe7679861ef17261615adc4af302befed3016f2f1855eaf",
+        "rows": 103,
+        "positives": 9,
+        "split": "train"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 110,
+        "run_id": "7a641d389f78",
+        "config_hash": "199a9355fe80c95b",
+        "stream_digest": "3d22bc95c453b2520230f798df14042e8449d653ec41161afbb6a6ec94e30c00",
+        "rows": 98,
+        "positives": 15,
+        "split": "train"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 201,
+        "run_id": "2481009c504b",
+        "config_hash": "4a2bae799d8ae569",
+        "stream_digest": "9f5672c922b06fab8fba6612ae778209a89b5cb6f3702a72c555c4d3fc5c8fd1",
+        "rows": 129,
+        "positives": 13,
+        "split": "test"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 202,
+        "run_id": "39efadede330",
+        "config_hash": "fa4dad50813763a6",
+        "stream_digest": "5418b5b78c960a4a862af9e31dcbb1b9d5210be5a71757e9d3f0cef461a17215",
+        "rows": 90,
+        "positives": 17,
+        "split": "test"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 203,
+        "run_id": "349d22f104db",
+        "config_hash": "0ca7996f32f4f934",
+        "stream_digest": "78f5826af9bd31a884a1362a22100d4a6c58517d0476b6d1db5b7d506854d86b",
+        "rows": 105,
+        "positives": 10,
+        "split": "test"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 204,
+        "run_id": "7a7cfac3901b",
+        "config_hash": "cbf36897bd8c2702",
+        "stream_digest": "80950a319ed83e11603e17cc45bff7ce5aab51d4e2dfdf1497ebede00bd2c407",
+        "rows": 87,
+        "positives": 16,
+        "split": "test"
+      },
+      {
+        "scenario": "hub_heavy",
+        "seed": 205,
+        "run_id": "8a200d7cf75d",
+        "config_hash": "13222520b8860e96",
+        "stream_digest": "d31484eb6d711096b1303200194edf930b79f1d5d2ee0bf9ef7a1a92d0e7b253",
+        "rows": 135,
+        "positives": 18,
+        "split": "test"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 101,
+        "run_id": "709c8cfbedcc",
+        "config_hash": "fa67e02fab4c55fe",
+        "stream_digest": "98cdbff500cdabf06a134b32794c163cb6368c6a9e46a910e6a8a84617f78d56",
+        "rows": 120,
+        "positives": 12,
+        "split": "train"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 102,
+        "run_id": "4f4e7af5daa4",
+        "config_hash": "ec873d29bf18b698",
+        "stream_digest": "b43ded3eb5ab4663f4b819569a3298baaf64cdc524c71b573cd81f5d4be77c4f",
+        "rows": 142,
+        "positives": 20,
+        "split": "train"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 103,
+        "run_id": "e46e8c647dee",
+        "config_hash": "2eb78595bfca921f",
+        "stream_digest": "e3dba57cc1e7de4370114146f31382730322c47fd35f622127c6cf9cb15c4933",
+        "rows": 115,
+        "positives": 18,
+        "split": "train"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 104,
+        "run_id": "5358951a5402",
+        "config_hash": "23ed39690d6f4ee4",
+        "stream_digest": "1b27887d511fc92cfeb380b617daa6f128557aafdff5f444cbbb1823213cc9a9",
+        "rows": 112,
+        "positives": 9,
+        "split": "train"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 105,
+        "run_id": "117d5c7f47f9",
+        "config_hash": "639cbd4751aebdab",
+        "stream_digest": "62577d568fa498c6470346e169a52478ba467850410a066f07f6ba8b7f96a12f",
+        "rows": 112,
+        "positives": 18,
+        "split": "train"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 106,
+        "run_id": "9d0bea0ccae5",
+        "config_hash": "fd5dd8020032fb92",
+        "stream_digest": "409f75dd332f8f666ae2e1efe75f622bc4241c465e7c24b07b44e44d20a4a699",
+        "rows": 106,
+        "positives": 21,
+        "split": "train"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 107,
+        "run_id": "809ae1fc5d62",
+        "config_hash": "79a5d8b3c2cf0cee",
+        "stream_digest": "c338134ec9f399c09c2c0d076e16ce8a94c9dabfd4978784d7186291d14daa7d",
+        "rows": 94,
+        "positives": 13,
+        "split": "train"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 108,
+        "run_id": "db479141e845",
+        "config_hash": "3a871a07651e64d8",
+        "stream_digest": "d5eeae4ea1bc17dc32a8928fa76c0790cd8ddc0d150a57936d99c996ed957507",
+        "rows": 158,
+        "positives": 24,
+        "split": "train"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 109,
+        "run_id": "a94c636c666e",
+        "config_hash": "ff0bf0b3d59b9bc8",
+        "stream_digest": "4f13ad63eb673cc23dfbadb091663a707865de61927f3e09f48aa4fafe5935d8",
+        "rows": 101,
+        "positives": 8,
+        "split": "train"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 110,
+        "run_id": "66e79e95971e",
+        "config_hash": "4dff53e34865bc45",
+        "stream_digest": "06e70fdb87ad6e82378f955ef289d9fdc289c365336989e37e0df91143986c34",
+        "rows": 131,
+        "positives": 35,
+        "split": "train"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 201,
+        "run_id": "7ada20941092",
+        "config_hash": "bd90fa036a904251",
+        "stream_digest": "ce0bb6cbbbbcb48411abc1f3acf77da1db76aba34d798b81cf6c6cddd5628d37",
+        "rows": 95,
+        "positives": 19,
+        "split": "test"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 202,
+        "run_id": "2fe6c2c2ad03",
+        "config_hash": "7283f551b4fe0294",
+        "stream_digest": "4ce9058282cc3299efb901ad5696e685903c52c1c3f3282dd2b29520a7537bb1",
+        "rows": 121,
+        "positives": 29,
+        "split": "test"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 203,
+        "run_id": "207e9095b981",
+        "config_hash": "8893fa8d628a5305",
+        "stream_digest": "852b7f47fa4b3868c02a4d5d923bb7c09a938e7902265efa99eb886c395472d9",
+        "rows": 111,
+        "positives": 11,
+        "split": "test"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 204,
+        "run_id": "cd4145f23009",
+        "config_hash": "a14815a82e18b2b2",
+        "stream_digest": "bc016a85d1ecd051dd99c3a2af3fad72a7feedefbe037ea34b66d6836055d209",
+        "rows": 121,
+        "positives": 19,
+        "split": "test"
+      },
+      {
+        "scenario": "adversarial",
+        "seed": 205,
+        "run_id": "2ce52932b4dc",
+        "config_hash": "3351a5090643c9b7",
+        "stream_digest": "58c05b4b86102973a4f756f0cb5d197de8424c553ed42dfa9fcb3ced89b515ae",
+        "rows": 121,
+        "positives": 20,
+        "split": "test"
+      },
+      {
+        "scenario": "drift",
+        "seed": 101,
+        "run_id": "bd1259db19fc",
+        "config_hash": "3ef1aa032b6c3bd1",
+        "stream_digest": "b6868c3c1614fd8e1857a5594d4aff4efe2bc3eecfa39a1f334ba3c2c7448aa6",
+        "rows": 197,
+        "positives": 6,
+        "split": "train"
+      },
+      {
+        "scenario": "drift",
+        "seed": 102,
+        "run_id": "22033e26c75f",
+        "config_hash": "00ca288f50f32215",
+        "stream_digest": "a07f3ed1845901f61050da6a0f4424c15692cc8bdf217567fb527ab8538ea2f0",
+        "rows": 99,
+        "positives": 10,
+        "split": "train"
+      },
+      {
+        "scenario": "drift",
+        "seed": 103,
+        "run_id": "a17d561341bc",
+        "config_hash": "9ddb1736f0bc87b1",
+        "stream_digest": "a6d5d8ecc71438e30e8ef387e0e810511600e03882282e21c3310a60c6e4c9ee",
+        "rows": 106,
+        "positives": 9,
+        "split": "train"
+      },
+      {
+        "scenario": "drift",
+        "seed": 104,
+        "run_id": "4d7ec783f46e",
+        "config_hash": "c331322e98845669",
+        "stream_digest": "1724c8903479ac0bf8c1fee3bbc212498b3e339d7cf38fa91dac35e8810e20e6",
+        "rows": 143,
+        "positives": 9,
+        "split": "train"
+      },
+      {
+        "scenario": "drift",
+        "seed": 105,
+        "run_id": "a4c0e182df55",
+        "config_hash": "42d7be3c3b0f30e3",
+        "stream_digest": "3bd55d0115a1a0253d4e34a4e2ca27c014a37bbe1a04e1517088d4fa3c269032",
+        "rows": 115,
+        "positives": 5,
+        "split": "train"
+      },
+      {
+        "scenario": "drift",
+        "seed": 106,
+        "run_id": "f45fe15887dc",
+        "config_hash": "91fd093d1988bdc6",
+        "stream_digest": "84f8c1e5d02a855ee9deb4d88976d025b3ff81ed5d8897f70df3ea17897c5a34",
+        "rows": 177,
+        "positives": 16,
+        "split": "train"
+      },
+      {
+        "scenario": "drift",
+        "seed": 107,
+        "run_id": "655d8d37740a",
+        "config_hash": "c292bd5b39fb864f",
+        "stream_digest": "084006ad4466e2eb216b5de71399499806cfa697c6118a6c72e7d41b2bd78a51",
+        "rows": 138,
+        "positives": 12,
+        "split": "train"
+      },
+      {
+        "scenario": "drift",
+        "seed": 108,
+        "run_id": "b780c4fc6c2e",
+        "config_hash": "96f2f5462e302411",
+        "stream_digest": "1d70d391f44e5c6c18c4deea867413af2d6716aa0babe92a4157cdac0931f1ce",
+        "rows": 149,
+        "positives": 10,
+        "split": "train"
+      },
+      {
+        "scenario": "drift",
+        "seed": 109,
+        "run_id": "aae269aaf58f",
+        "config_hash": "812e0270687d3075",
+        "stream_digest": "6a758dbf179be33fde11cf280756a1cb22088d344c32b394c67c7b0c9ab38667",
+        "rows": 160,
+        "positives": 16,
+        "split": "train"
+      },
+      {
+        "scenario": "drift",
+        "seed": 110,
+        "run_id": "c5fe70196674",
+        "config_hash": "22546f560f2f5372",
+        "stream_digest": "089d1c098c803ea53c0e225f2bca589d0d1c9f8e68d2e69f42d24fa2fc3b1f55",
+        "rows": 100,
+        "positives": 7,
+        "split": "train"
+      },
+      {
+        "scenario": "drift",
+        "seed": 201,
+        "run_id": "69e220542d12",
+        "config_hash": "405fc971fddbd331",
+        "stream_digest": "52fef5a67774adf2050f55315761de4bdcc32f215ecb1fa703a2328d86b2ef8b",
+        "rows": 149,
+        "positives": 4,
+        "split": "test"
+      },
+      {
+        "scenario": "drift",
+        "seed": 202,
+        "run_id": "c20a52e5bae6",
+        "config_hash": "52c001114646e05c",
+        "stream_digest": "0b1a4dbde30a2f8a7fb76f3b854ff9a5b254cbc079b6caf54450b43417de3eff",
+        "rows": 149,
+        "positives": 18,
+        "split": "test"
+      },
+      {
+        "scenario": "drift",
+        "seed": 203,
+        "run_id": "f13d7921a413",
+        "config_hash": "761f3a8bb8d10129",
+        "stream_digest": "cb48c047bac0c051eeeddfbac92ea62dfbe640f6b569664404923d09d68959e7",
+        "rows": 147,
+        "positives": 9,
+        "split": "test"
+      },
+      {
+        "scenario": "drift",
+        "seed": 204,
+        "run_id": "6ccb0c9967c6",
+        "config_hash": "634512ea14c2fabc",
+        "stream_digest": "ac101c067eaf5ee25f8f42599ac5da3234e2ec12ae78ad81012a4764c0394f2c",
+        "rows": 148,
+        "positives": 7,
+        "split": "test"
+      },
+      {
+        "scenario": "drift",
+        "seed": 205,
+        "run_id": "067c3c6d4dbe",
+        "config_hash": "e36e6cd4e3a20c7f",
+        "stream_digest": "fa1b7ad690c33c8cf15d79838a1059d3df6fccdf20d52780092090dad98cc1a1",
+        "rows": 173,
+        "positives": 5,
+        "split": "test"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 101,
+        "run_id": "a04e51b0f204",
+        "config_hash": "21d92293269a2ef0",
+        "stream_digest": "e0af23bc328da668c3f1bb5f39466c26c345f433934e267736cf56cf0a944d0d",
+        "rows": 301,
+        "positives": 95,
+        "split": "train"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 102,
+        "run_id": "b84abbaa6c17",
+        "config_hash": "7fb14f939a454956",
+        "stream_digest": "8dcf9910c0d215c08bed8d6ceadb504ea2a93ee0fba3d1af4fc6a498f8f50ed5",
+        "rows": 356,
+        "positives": 95,
+        "split": "train"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 103,
+        "run_id": "8039bc92d216",
+        "config_hash": "62160a4df5bd58a3",
+        "stream_digest": "285495ae20cc88c38c9070138c00f09a7db82558b0414b1c214c1b25d8312d86",
+        "rows": 333,
+        "positives": 108,
+        "split": "train"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 104,
+        "run_id": "e419367d4670",
+        "config_hash": "a873d5df50c69c1b",
+        "stream_digest": "fe1f65d7f39c5274b135a5b06e11479ae2f9e8454077100522fdab96f3f566cd",
+        "rows": 179,
+        "positives": 58,
+        "split": "train"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 105,
+        "run_id": "35d1838f5b8a",
+        "config_hash": "5466af15e185fc19",
+        "stream_digest": "101318b8445d7cdf7076a505cad17ba9a024bfb453cede087b42ca9f17bf68a5",
+        "rows": 261,
+        "positives": 72,
+        "split": "train"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 106,
+        "run_id": "847252a8f3bd",
+        "config_hash": "3838f5a8ef309552",
+        "stream_digest": "ccfc8bbb8f0cce6ed1079c92649031b5d4ea35b3b46c57de4c26ee8244d0cc9e",
+        "rows": 354,
+        "positives": 203,
+        "split": "train"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 107,
+        "run_id": "1a4914aac0f7",
+        "config_hash": "15f05e9f5fc2805b",
+        "stream_digest": "537d92d7a25ea2dbce2beb15926492e5772dc244b3f20fc3baec68b3d65de149",
+        "rows": 299,
+        "positives": 61,
+        "split": "train"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 108,
+        "run_id": "24138ffa6814",
+        "config_hash": "9f7d4838b42acf62",
+        "stream_digest": "9facbf24026766ebef1d13ca7a276bf5eba453f7549aacf7709d54705498e0e3",
+        "rows": 261,
+        "positives": 115,
+        "split": "train"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 109,
+        "run_id": "0eb0e1abaddd",
+        "config_hash": "eda1cba1d3327c5b",
+        "stream_digest": "05381846b2248c8bef561b91e0bdd265729c2dade04cf8917cc18111a46db06e",
+        "rows": 254,
+        "positives": 83,
+        "split": "train"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 110,
+        "run_id": "f92c879912e6",
+        "config_hash": "5fc35ceb5f52d13f",
+        "stream_digest": "aa1e9ad76f6d76df344099abd55c2059ff111b8a4ed643c00e4c1713c1e974a6",
+        "rows": 393,
+        "positives": 118,
+        "split": "train"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 201,
+        "run_id": "3b19b9e491cb",
+        "config_hash": "b8833ece32faa12b",
+        "stream_digest": "2a5cca36e3e4ffa4ebbd4961b72ef70197bd6a78ba2dcbc1e86c37acdb5a28c0",
+        "rows": 332,
+        "positives": 147,
+        "split": "test"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 202,
+        "run_id": "8f50d2b67dc8",
+        "config_hash": "e9e391b351fa985e",
+        "stream_digest": "200410f477284560b45f733e1d01a8c278746964e7e37d52e21e16b53e6a1d64",
+        "rows": 349,
+        "positives": 105,
+        "split": "test"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 203,
+        "run_id": "50cd1efee93e",
+        "config_hash": "7cb74a04b96b0d19",
+        "stream_digest": "1edd6b7f8400966c4e46cb46f2230b23f39c7fef1a302d641a5dddf26731dbf8",
+        "rows": 201,
+        "positives": 45,
+        "split": "test"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 204,
+        "run_id": "8e137510e0ad",
+        "config_hash": "6ee01723c05c90a3",
+        "stream_digest": "498cbf6f61b4110ecdd7a797cf0df3eb0dc7cf37b20a8fd519f2a110d72371c9",
+        "rows": 311,
+        "positives": 134,
+        "split": "test"
+      },
+      {
+        "scenario": "scale_sweep",
+        "seed": 205,
+        "run_id": "24e00fe1915e",
+        "config_hash": "342584da3d979ef7",
+        "stream_digest": "4fc1949f7d3a0ae3c5f275951d009070638c8831a3ca82ce6bb0e58a05e80e96",
+        "rows": 322,
+        "positives": 145,
+        "split": "test"
+      }
+    ],
+    "dataset": "runs\\training\\dd98f740ea8c",
+    "wall_s": 1676.15
+  },
+  "metrics": {
+    "fit_slice": {
+      "n": 5812,
+      "positives": 828,
+      "brier": 0.049611,
+      "roc_auc": 0.980204,
+      "pr_auc": 0.848256,
+      "ece": 0.056891
+    },
+    "calibration_slice": {
+      "n": 3133,
+      "positives": 864,
+      "brier": 0.031362,
+      "roc_auc": 0.981865,
+      "pr_auc": 0.9157,
+      "ece": 0.0
+    },
+    "test": {
+      "n": 4516,
+      "positives": 984,
+      "brier": 0.046133,
+      "roc_auc": 0.981661,
+      "pr_auc": 0.907582,
+      "ece": 0.029343
+    }
+  },
+  "reliability": [
+    {
+      "bucket": "0.0-0.1",
+      "n": 3113,
+      "mean_score": 0.0079,
+      "observed_rate": 0.0042
+    },
+    {
+      "bucket": "0.1-0.2",
+      "n": 0,
+      "mean_score": null,
+      "observed_rate": null
+    },
+    {
+      "bucket": "0.2-0.3",
+      "n": 196,
+      "mean_score": 0.2895,
+      "observed_rate": 0.1633
+    },
+    {
+      "bucket": "0.3-0.4",
+      "n": 3,
+      "mean_score": 0.3672,
+      "observed_rate": 0.0
+    },
+    {
+      "bucket": "0.4-0.5",
+      "n": 140,
+      "mean_score": 0.4685,
+      "observed_rate": 0.2857
+    },
+    {
+      "bucket": "0.5-0.6",
+      "n": 5,
+      "mean_score": 0.5435,
+      "observed_rate": 0.2
+    },
+    {
+      "bucket": "0.6-0.7",
+      "n": 48,
+      "mean_score": 0.6537,
+      "observed_rate": 0.5417
+    },
+    {
+      "bucket": "0.7-0.8",
+      "n": 22,
+      "mean_score": 0.7783,
+      "observed_rate": 0.5
+    },
+    {
+      "bucket": "0.8-0.9",
+      "n": 224,
+      "mean_score": 0.8946,
+      "observed_rate": 0.6741
+    },
+    {
+      "bucket": "0.9-1.0",
+      "n": 765,
+      "mean_score": 0.9191,
+      "observed_rate": 0.9281
+    }
+  ],
+  "coefficients": {
+    "size": -1.670011,
+    "density": 0.036832,
+    "share_device": 0.633818,
+    "share_card": 0.319224,
+    "share_ip": -1.186353,
+    "hub_adjusted_weight": 1.069221,
+    "cycle_present": -0.532114,
+    "cycle_length": 0.65753,
+    "temporal_burstiness": -0.056306,
+    "account_age_similarity": -0.686824,
+    "account_age_min": -1.574138,
+    "internal_txns_per_member": 1.054208,
+    "amount_mean_log": 2.736324,
+    "amount_cv": -2.866341,
+    "near_threshold_frac": 0.089117,
+    "growth_rate": 0.982371,
+    "risk_signal_fraction": -0.889586,
+    "hub_exposure": 0.069504,
+    "n_detectors": 0.495134
+  }
+}

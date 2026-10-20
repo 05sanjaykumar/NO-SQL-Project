@@ -9,11 +9,14 @@ pattern matching, on a small controlled dataset with known planted rings.
 ## Run it
 
 ```bash
-docker compose up -d
-python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
-./.venv/bin/python seed.py
-./.venv/bin/python app.py
+./start.sh
 ```
+
+Starts Docker if needed, brings up Neo4j, installs dependencies on first run,
+seeds the graph and launches the dashboard. Safe to re-run. Pass a user count
+to change the dataset size, e.g. `./start.sh 1000`.
+
+Stop everything with `./stop.sh` - the graph survives in the Docker volume.
 
 Then open **http://localhost:8010** for the dashboard - buttons for each query,
 a slider for the degree threshold, and a control to regenerate the dataset at
@@ -32,6 +35,7 @@ Shut down with `docker compose down` (add `-v` to also wipe the data volume).
 | `docker-compose.yml` | Neo4j 5.26, one service |
 | `seed.py` | Builds the graph and plants the fraud rings |
 | `queries.cypher` | The detection queries |
+| `start.sh` / `stop.sh` | Bring the whole project up or down in one command |
 | `app.py` | FastAPI service: runs queries, reseeds, scaling benchmark |
 | `static/index.html` | Dashboard - Cytoscape graph, query buttons, degree slider |
 | `paper/IEEE_PAPER.md` | Write-up in IEEE format |

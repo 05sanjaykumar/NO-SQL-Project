@@ -54,6 +54,19 @@ the browser login form.
 
 ---
 
+## Quickest way
+
+```bash
+./start.sh
+```
+
+That does everything below in one command: starts Docker, brings up Neo4j,
+creates the virtualenv, installs dependencies, seeds the graph and launches the
+dashboard at http://localhost:8010. `./stop.sh` shuts it down.
+
+The rest of this file explains what those steps actually do, and what to try
+when one of them fails.
+
 ## First time setup
 
 Run these from inside the project folder.

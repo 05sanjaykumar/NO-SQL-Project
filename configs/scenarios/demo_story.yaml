@@ -1,0 +1,53 @@
+name: demo_story
+description: "Demo: a fraud ring hides behind a busy office network; a normal ring and family devices provide contrast"
+version: "1.0"
+
+# Used by `fraudsim demo-story`. A single, short run: one fixed seed, one story.
+# Aggregate results over many seeds come from the experiment harness (Milestone 8).
+
+simulation:
+  duration_seconds: 90
+  target_event_rate: 20.0
+  num_users: 120
+  num_devices: 60
+  num_cards: 60
+  num_ips: 50
+  heavy_tail_alpha: 2.2
+  user_join_rate: 0.1
+  user_leave_rate: 0.05
+  hub_distribution:
+    office_wifi:
+      size: 40
+      type: "ip"
+      category: office
+    family_tablet:
+      size: 4
+      type: "device"
+      category: family_device
+    shared_household_card:
+      size: 3
+      type: "card"
+      category: corporate_card
+
+rings:
+  - id: hidden_office_ring
+    type: shared_ip
+    size: 4
+    shared_attribute: "office_wifi"
+    spawn_time_s: 10
+    grow_interval_s: 3
+    action_interval_s: 2.5
+    evasion: hub_hiding
+  - id: plain_device_ring
+    type: shared_device
+    size: 4
+    spawn_time_s: 25
+    grow_interval_s: 3
+    evasion: none
+  - id: cycle_ring
+    type: money_cycle
+    size: 4
+    length: 4
+    spawn_time_s: 40
+    grow_interval_s: 2
+    evasion: none

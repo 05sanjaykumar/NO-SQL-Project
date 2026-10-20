@@ -27,6 +27,7 @@ dependencies = [
     "scipy>=1.14",
     "pandas>=2.2",
     "scikit-learn>=1.5",
+    "networkx>=3.2",
     "matplotlib>=3.9",
     "orjson>=3.10",
     "pyarrow>=18.0",
@@ -45,6 +46,7 @@ dev = [
     "ruff>=0.7",
     "mypy>=1.12",
     "hypothesis>=6.112",
+    "fakeredis>=2.20",
 ]
 gnn = [
     "torch>=2.4",
@@ -81,12 +83,17 @@ ignore = [
     "E402",                     # sys.path modification in tests/conftest.py
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"scripts/**" = ["E501", "E402"]  # one-off measurement scripts
+
 [tool.ruff.lint.isort]
 known-first-party = ["fraudsim"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+timeout = 300
 markers = [
     "integration: requires running Neo4j",
     "slow: takes more than 10 seconds",

@@ -1,9 +1,10 @@
-.PHONY: help install dev lint test test-unit test-integration experiment demo clean
+.PHONY: help install dev lint test test-unit test-integration simulate simulate-all train-scorer demo-story experiment demo clean
 
 PYTHON ?= python
 DOCKER ?= docker compose
 SEEDS  ?= 5
 SCENARIO ?= baseline
+SEED   ?= 42
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -62,6 +63,24 @@ test-smoke: ## Quick smoke test: 60-second headless scenario
 
 seed: ## Run the original seed.py to load the demo graph
 	$(PYTHON) seed.py
+
+# ─── Simulator ────────────────────────────────────────────────────────
+
+simulate: ## Headless simulator run: make simulate SCENARIO=adversarial SEED=7
+	$(PYTHON) -m fraudsim.cli simulate --scenario $(SCENARIO) --seed $(SEED) --out runs/
+
+simulate-all: ## Headless simulator run of every scenario
+	@for s in baseline high_noise hub_heavy adversarial scale_sweep drift; do \
+		$(MAKE) simulate SCENARIO=$$s SEED=$(SEED) ; \
+	done
+
+# ─── Scoring and demo ─────────────────────────────────────────────────
+
+train-scorer: ## Train + calibrate the ring risk model (logistic regression)
+	$(PYTHON) -m fraudsim.cli train-scorer --model logistic_regression --train-seeds 101-110 --test-seeds 201-205
+
+demo-story: ## One-command demo: hidden ring vs degree cap, writes demo/story.html
+	$(PYTHON) -m fraudsim.cli demo-story --seed 7 --out demo/ --open
 
 # ─── Experiments ──────────────────────────────────────────────────────
 

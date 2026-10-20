@@ -1,6 +1,6 @@
 name: drift
 description: "Concept drift scenario where benign hub-size distribution and transaction bursts shift mid-run"
-version: "1.0"
+version: "2.0"
 
 simulation:
   duration_seconds: 90
@@ -9,15 +9,18 @@ simulation:
   num_devices: 100
   num_cards: 100
   num_ips: 80
-  benign_txn_rate: 1.5
   heavy_tail_alpha: 2.3
+  user_join_rate: 0.3
+  user_leave_rate: 0.2
   hub_distribution:
     initial_hub:
       size: 20
       type: "ip"
+      category: office
   drift:
     trigger_time_s: 45
     new_hub_size: 70
+    new_hub_kind: ip
     shift_multiplier: 2.5
 
 rings:
@@ -26,8 +29,17 @@ rings:
     size: 4
     spawn_time_s: 15
     evasion: none
+    active_duration_s: 40
   - id: post_drift_ring
     type: shared_ip
     size: 5
     spawn_time_s: 60
     evasion: hub_hiding
+
+random_rings:
+  rate_per_min: 1.0
+  types: [shared_device, shared_card, money_cycle]
+  size_min: 3
+  size_max: 5
+  evasion_weights: {none: 1.0}
+  active_duration_s: [20, 40]

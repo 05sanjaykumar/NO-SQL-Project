@@ -65,8 +65,11 @@ class GroundTruthLedger:
         ts: datetime,
         evasion_mode: EvasionMode = EvasionMode.NONE,
         shared_attributes: dict[str, str] | None = None,
+        details: dict[str, Any] | None = None,
     ) -> GroundTruthRing:
         """Register a new fraud ring."""
+        if ring_id in self._rings:
+            raise ValueError(f"ring_id {ring_id!r} already registered")
         ring = GroundTruthRing(
             ring_id=ring_id,
             ring_type=ring_type,
@@ -75,8 +78,9 @@ class GroundTruthLedger:
             members=set(members),
             shared_attributes=shared_attributes or {},
             spawn_ts=ts,
+            details=dict(details or {}),
         )
-        for uid in members:
+        for uid in sorted(members):
             ring.member_history.append((ts, "join", uid))
 
         self._rings[ring_id] = ring
@@ -97,13 +101,53 @@ class GroundTruthLedger:
         ring.add_member(user_id, ts)
         self._append_log("grow", ring_id, ts, {"user_id": user_id})
 
+    def replace_member(self, ring_id: str, old_user: str, new_user: str, ts: datetime) -> None:
+        """Swap one member for another (identity rotation) without changing lifecycle."""
+        ring = self._rings[ring_id]
+        ring.remove_member(old_user, ts)
+        ring.add_member(new_user, ts)
+        self._append_log("rotate", ring_id, ts, {"left": old_user, "joined": new_user})
+
     def mutate_ring(
         self, ring_id: str, ts: datetime, changes: dict[str, Any] | None = None
     ) -> None:
         """Record a mutation (e.g. swap a device or card)."""
         ring = self._rings[ring_id]
         ring.lifecycle = RingLifecycle.MUTATING
+        ring.details["mutations"] = ring.details.get("mutations", 0) + 1
+        if changes and "shared_attributes" in changes:
+            ring.shared_attributes.update(changes["shared_attributes"])
         self._append_log("mutate", ring_id, ts, changes)
+
+    def resume_ring(self, ring_id: str, ts: datetime) -> None:
+        """Return a MUTATING ring to ACTIVE once the mutation is complete."""
+        ring = self._rings[ring_id]
+        if ring.lifecycle == RingLifecycle.MUTATING:
+            ring.lifecycle = RingLifecycle.ACTIVE
+            self._append_log("resume", ring_id, ts)
+
+    def record_attacker_observation(
+        self, ring_id: str, ts: datetime, details: dict[str, Any]
+    ) -> None:
+        """Log that the (simulated) attacker learned one of its rings was flagged."""
+        ring = self._rings[ring_id]
+        ring.details.setdefault("flags_observed", []).append(ts.isoformat())
+        self._append_log("attacker_observed_flag", ring_id, ts, details)
+
+    def members_at(self, at: datetime) -> dict[str, set[str]]:
+        """Member set of every ring that existed (spawned, not yet dissolved) at `at`."""
+        return {
+            rid: self.get_members_at(rid, at)
+            for rid, ring in self._rings.items()
+            if ring.spawn_ts is not None
+            and ring.spawn_ts <= at
+            and (ring.dissolve_ts is None or ring.dissolve_ts > at)
+        }
+
+    @property
+    def log(self) -> list[dict[str, Any]]:
+        """Copy of the append-only lifecycle log."""
+        return list(self._log)
 
     def dissolve_ring(self, ring_id: str, ts: datetime) -> None:
         """Mark a ring as DISSOLVED."""
@@ -143,13 +187,13 @@ class GroundTruthLedger:
 
     def export_jsonl(self, path: Path) -> None:
         """Write the full ledger to a JSONL file."""
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             for ring in self._rings.values():
                 f.write(json.dumps(ring.to_dict(), default=str) + "\n")
 
     def export_log(self, path: Path) -> None:
         """Write the event log to a JSONL file."""
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             for entry in self._log:
                 f.write(json.dumps(entry, default=str) + "\n")
 

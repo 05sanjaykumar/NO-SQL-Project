@@ -12,8 +12,20 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from fraudsim.simulator.recorder import run_simulation
 from fraudsim.simulator.scenario_loader import load_scenario
-from fraudsim.types import config_hash
+
+# Detection metrics are produced once the detection engine (Milestone 3) and metrics
+# (Milestone 5) exist. Until then they are reported as None, never as placeholders.
+DETECTION_METRICS = (
+    "rings_detected",
+    "precision",
+    "recall",
+    "f1",
+    "latency_p50_ms",
+    "latency_p95_ms",
+    "latency_p99_ms",
+)
 
 
 def run_single_experiment(
@@ -22,38 +34,26 @@ def run_single_experiment(
     output_dir: Path,
     scenario_cfg: dict[str, Any],
 ) -> dict[str, Any]:
-    """Execute a single scenario run for one seed and return summary metrics."""
+    """Execute a single scenario run for one seed and return what was actually measured."""
     run_id = f"exp_{scenario_name}_{seed}_{int(time.time())}"
-    cfg_hash = config_hash(scenario_cfg)
+    manifest = run_simulation(scenario_cfg, seed, output_dir / "runs", run_id=run_id)
 
-    # In M1/M2 this executes the scenario simulation pipeline.
-    # We record actual run execution metadata and baseline results.
-    start_time = time.perf_counter()
-
-    # Simulate run latency / throughput
-    duration = time.perf_counter() - start_time
-
-    # Construct result record
-    result = {
+    result: dict[str, Any] = {
         "run_id": run_id,
         "scenario": scenario_name,
         "seed": seed,
-        "config_hash": cfg_hash,
+        "config_hash": manifest["config_hash"],
         "timestamp": datetime.now(UTC).isoformat(),
-        "duration_sec": round(duration, 4),
-        "events_processed": 126,  # baseline graph size
-        "rings_ground_truth": 4,
-        "rings_detected": 4,
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0,
-        "latency_p50_ms": 4.12,
-        "latency_p95_ms": 11.45,
-        "latency_p99_ms": 23.80,
-        "throughput_eps": 145.2,
+        "stream_digest": manifest["stream_digest"],
+        "sim_time_s": manifest["sim_time_s"],
+        "events_processed": manifest["events"],
+        "rings_ground_truth": manifest["rings"]["total_rings"],
+        "generation_wall_s": manifest["generation_wall_s"],
+        "generation_events_per_s": manifest["generation_events_per_s"],
+        **{k: None for k in DETECTION_METRICS},
+        "detection_status": "not_run: detection engine arrives in Milestone 3",
     }
 
-    # Save detailed run JSON
     run_file = output_dir / f"{run_id}.json"
     with open(run_file, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
@@ -73,10 +73,7 @@ def main() -> None:
     out_path = Path(args.output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    try:
-        scenario_cfg = load_scenario(args.scenario)
-    except Exception:
-        scenario_cfg = {"name": args.scenario, "version": "1.0"}
+    scenario_cfg = load_scenario(args.scenario)
 
     print(f"=== Starting Experiment: scenario={args.scenario}, seeds={args.seeds} ===")
     results: list[dict[str, Any]] = []

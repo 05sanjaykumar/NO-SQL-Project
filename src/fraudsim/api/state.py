@@ -23,6 +23,7 @@ class AppState:
         self.recent_events: list[dict[str, Any]] = []
         self.ws_clients: set[Any] = set()
         self.neo4j_client: Any = None
+        self.live: Any = None  # fraudsim.api.live.LiveRun while a run exists
 
     async def broadcast_ws(self, message: dict[str, Any]) -> None:
         """Broadcast message to all connected WebSocket clients."""

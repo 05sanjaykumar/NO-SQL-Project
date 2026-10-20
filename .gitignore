@@ -2,3 +2,9 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+runs/
+results/
+.pytest_cache/
+.ruff_cache/
+demo/
+models/*.joblib.tmp

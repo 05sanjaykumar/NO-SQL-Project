@@ -11,15 +11,19 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
+from fraudsim.api.live import LiveRun
 from fraudsim.api.schemas import (
     AnalystFeedbackRequest,
     HealthResponse,
     MetricsResponse,
+    RateRequest,
     RingDetailResponse,
     RunStatusResponse,
+    SpeedRequest,
     StartRunRequest,
 )
 from fraudsim.api.state import state
+from fraudsim.simulator.scenario_loader import list_scenarios
 from fraudsim.types import new_run_id
 
 app = FastAPI(
@@ -51,26 +55,48 @@ async def get_health() -> HealthResponse:
 
 @app.get("/status", response_model=RunStatusResponse)
 async def get_status() -> RunStatusResponse:
+    live = state.live.snapshot() if state.live is not None else {}
+    if state.live is not None:
+        state.status = state.live.status
+        state.events_emitted = live["events_emitted"]
     return RunStatusResponse(
         run_id=state.run_id,
         status=state.status,
         scenario=state.scenario,
         seed=state.seed,
         events_emitted=state.events_emitted,
-        rings_detected=len(state.active_rings),
-        speed_multiplier=state.speed_multiplier,
+        rings_detected=(
+            len(state.live.engine.tracker.confirmed())
+            if state.live is not None
+            else len(state.active_rings)
+        ),
+        speed_multiplier=live.get("speed_multiplier", state.speed_multiplier),
+        sim_time_s=live.get("sim_time_s", 0.0),
+        rate=live.get("rate", 0.0),
     )
 
 
 @app.post("/runs/start", response_model=RunStatusResponse)
 async def start_run(req: StartRunRequest) -> RunStatusResponse:
+    if req.scenario not in list_scenarios():
+        raise HTTPException(status_code=404, detail=f"Unknown scenario '{req.scenario}'")
+    if state.live is not None:
+        await state.live.stop()
+        state.live = None
     state.run_id = new_run_id()
-    state.status = "running"
     state.scenario = req.scenario
     state.seed = req.seed
     state.speed_multiplier = req.speed_multiplier
     state.events_emitted = 0
     state.active_rings.clear()
+    state.live = LiveRun(
+        scenario=req.scenario,
+        seed=req.seed,
+        run_id=state.run_id,
+        speed=req.speed_multiplier,
+        broadcast=state.broadcast_ws,
+    )
+    await state.live.start()
 
     await state.broadcast_ws(
         {
@@ -86,34 +112,74 @@ async def start_run(req: StartRunRequest) -> RunStatusResponse:
 
 @app.post("/runs/pause", response_model=RunStatusResponse)
 async def pause_run() -> RunStatusResponse:
-    if state.status == "running":
-        state.status = "paused"
+    if state.live is not None and state.live.status == "running":
+        state.live.pause()
         await state.broadcast_ws({"type": "RUN_PAUSED", "run_id": state.run_id})
     return await get_status()
 
 
 @app.post("/runs/resume", response_model=RunStatusResponse)
 async def resume_run() -> RunStatusResponse:
-    if state.status == "paused":
-        state.status = "running"
+    if state.live is not None and state.live.status == "paused":
+        state.live.resume()
         await state.broadcast_ws({"type": "RUN_RESUMED", "run_id": state.run_id})
     return await get_status()
 
 
 @app.post("/runs/stop", response_model=RunStatusResponse)
 async def stop_run() -> RunStatusResponse:
+    if state.live is not None:
+        await state.live.stop()
+        state.events_emitted = state.live.events_consumed
+        state.live = None
     state.status = "stopped"
     await state.broadcast_ws({"type": "RUN_STOPPED", "run_id": state.run_id})
     return await get_status()
 
 
+@app.post("/runs/speed", response_model=RunStatusResponse)
+async def set_speed(req: SpeedRequest) -> RunStatusResponse:
+    """Change the speed multiplier (simulated seconds per wall second; 0 = max)."""
+    if state.live is None:
+        raise HTTPException(status_code=409, detail="No run in progress")
+    state.live.set_speed(req.speed_multiplier)
+    state.speed_multiplier = req.speed_multiplier
+    await state.broadcast_ws({"type": "RUN_SPEED", "speed_multiplier": req.speed_multiplier})
+    return await get_status()
+
+
+@app.post("/runs/rate", response_model=RunStatusResponse)
+async def set_rate(req: RateRequest) -> RunStatusResponse:
+    """Change the benign event rate (events per simulated second)."""
+    if state.live is None:
+        raise HTTPException(status_code=409, detail="No run in progress")
+    state.live.set_rate(req.events_per_second)
+    await state.broadcast_ws({"type": "RUN_RATE", "events_per_second": req.events_per_second})
+    return await get_status()
+
+
+@app.get("/events/recent")
+async def recent_events(limit: int = 50) -> list[dict[str, Any]]:
+    """Tail of the observable event stream for the current run."""
+    if state.live is None:
+        return []
+    return list(state.live.recent)[-max(0, limit) :]
+
+
+def _sync_rings() -> None:
+    if state.live is not None:
+        state.active_rings.update({r["ring_id"]: r for r in state.live.rings()})
+
+
 @app.get("/rings", response_model=list[RingDetailResponse])
 async def list_rings() -> list[RingDetailResponse]:
+    _sync_rings()
     return [RingDetailResponse(**r) for r in state.active_rings.values()]
 
 
 @app.get("/rings/{ring_id}", response_model=RingDetailResponse)
 async def get_ring(ring_id: str) -> RingDetailResponse:
+    _sync_rings()
     if ring_id not in state.active_rings:
         raise HTTPException(status_code=404, detail=f"Ring '{ring_id}' not found")
     return RingDetailResponse(**state.active_rings[ring_id])
@@ -126,6 +192,15 @@ async def analyst_feedback(ring_id: str, feedback: AnalystFeedbackRequest) -> di
     ring = state.active_rings[ring_id]
     ring["status"] = "confirmed" if feedback.action == "confirm" else "dissolved"
     ring["updated_at"] = datetime.now(UTC).isoformat()
+    adaptation = None
+    if state.live is not None:
+        risk = ring.get("explanation", {}).get("risk")
+        adaptation = state.live.scoring.policy.feedback(
+            ring_id,
+            ring["ring_type"],
+            float(risk if risk is not None else ring["score"]),
+            feedback.action,
+        )
 
     await state.broadcast_ws(
         {
@@ -136,7 +211,12 @@ async def analyst_feedback(ring_id: str, feedback: AnalystFeedbackRequest) -> di
             "note": feedback.note,
         }
     )
-    return {"status": "success", "ring_id": ring_id, "new_status": ring["status"]}
+    return {
+        "status": "success",
+        "ring_id": ring_id,
+        "new_status": ring["status"],
+        "threshold_adaptation": adaptation,
+    }
 
 
 @app.get("/metrics/summary", response_model=MetricsResponse)

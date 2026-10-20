@@ -1,6 +1,6 @@
 name: hub_heavy
 description: "Dense benign hubs scenario testing whether rings hiding behind dense hubs can be recovered"
-version: "1.0"
+version: "2.0"
 
 simulation:
   duration_seconds: 60
@@ -9,25 +9,41 @@ simulation:
   num_devices: 40
   num_cards: 50
   num_ips: 30
-  benign_txn_rate: 1.0
   heavy_tail_alpha: 2.0
+  user_join_rate: 0.2
+  user_leave_rate: 0.1
   hub_distribution:
     mega_office_gateway:
       size: 50
       type: "ip"
+      category: office
     public_vpn_endpoint:
       size: 35
       type: "ip"
+      category: carrier_nat
     store_kiosk:
       size: 20
       type: "device"
+      category: kiosk
+  hub_size_distribution:
+    count: 6
+    min_size: 5
+    max_size: 40
+    alpha: 1.2
+    categories: [office, carrier_nat, family_device]
 
 rings:
   - id: ring_in_hub
     type: shared_ip
     size: 4
-    shared_attribute: "ip_hub_mega"
+    shared_attribute: "mega_office_gateway"
     spawn_time_s: 12
+    evasion: hub_hiding
+  - id: ring_behind_kiosk
+    type: shared_device
+    size: 4
+    shared_attribute: "store_kiosk"
+    spawn_time_s: 18
     evasion: hub_hiding
   - id: standard_ring
     type: shared_card
@@ -35,3 +51,8 @@ rings:
     shared_attribute: "card_hub_sec"
     spawn_time_s: 25
     evasion: none
+  - id: mixed_behind_hub
+    type: mixed_attribute
+    size: 5
+    spawn_time_s: 32
+    evasion: hub_hiding

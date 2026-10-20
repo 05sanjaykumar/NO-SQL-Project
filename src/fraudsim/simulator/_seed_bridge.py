@@ -11,7 +11,8 @@ import random
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from fraudsim.types import Event, EventType, new_event_id
+from fraudsim.simulator.ground_truth import GroundTruthLedger
+from fraudsim.types import Event, EventType, RingType, new_event_id
 
 # ─── Original seed.py constants (preserved exactly) ──────────────────
 
@@ -180,3 +181,41 @@ def seed_to_events(run_id: str, base_ts: datetime) -> list[Event]:
         made += 1
 
     return events
+
+
+def seed_ground_truth(ledger: GroundTruthLedger, events: list[Event]) -> None:
+    """
+    Record the four planted seed.py rings in the ground-truth ledger.
+
+    Replaces the old `ring` node property: labels live here, never on the graph.
+    Each ring spawns at its first planting event and activates at its last one.
+    """
+    plantings: dict[str, list[datetime]] = defaultdict(list)
+    for ev in events:
+        p = ev.payload
+        if ev.event_type == EventType.DEVICE_LINK and p.get("device_id") == RING_A_DEVICE:
+            plantings["A"].append(ev.ts)
+        elif ev.event_type == EventType.CARD_LINK and p.get("card_id") == RING_B_CARD:
+            plantings["B"].append(ev.ts)
+        elif ev.event_type == EventType.IP_LINK and p.get("ip") == RING_C_IP:
+            plantings["C"].append(ev.ts)
+        elif ev.event_type == EventType.TRANSACTION and p.get("txn_id") in ("t000", "t001", "t002"):
+            plantings["cycle"].append(ev.ts)
+
+    rings = [
+        ("A", RingType.SHARED_DEVICE, RING_A_USERS, {"device": RING_A_DEVICE}),
+        ("B", RingType.SHARED_CARD, RING_B_USERS, {"card": RING_B_CARD}),
+        ("C", RingType.SHARED_IP, RING_C_USERS, {"ip": RING_C_IP}),
+        ("cycle", RingType.MONEY_CYCLE, CYCLE_USERS, {}),
+    ]
+    for label, ring_type, members, shared in rings:
+        times = plantings[label]
+        ledger.spawn_ring(
+            ring_id=f"seed_{label}",
+            ring_type=ring_type,
+            members=set(members),
+            ts=min(times),
+            shared_attributes=shared,
+            details={"source": "seed.py"},
+        )
+        ledger.activate_ring(f"seed_{label}", max(times))

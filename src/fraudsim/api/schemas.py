@@ -22,15 +22,25 @@ class RunStatusResponse(BaseModel):
     seed: int
     events_emitted: int = 0
     rings_detected: int = 0
-    speed_multiplier: float = 1.0
+    speed_multiplier: float = 1.0  # 0 = as fast as possible
+    sim_time_s: float = 0.0
+    rate: float = 0.0  # benign events per simulated second
 
 
 class StartRunRequest(BaseModel):
     scenario: str = "baseline"
     seed: int = 42
-    speed_multiplier: float = 1.0
+    speed_multiplier: float = Field(default=1.0, ge=0.0)
     hub_weight_enabled: bool = True
     hub_degree_cap: float | None = None
+
+
+class SpeedRequest(BaseModel):
+    speed_multiplier: float = Field(ge=0.0, description="0 = as fast as possible")
+
+
+class RateRequest(BaseModel):
+    events_per_second: float = Field(ge=0.0)
 
 
 class AnalystFeedbackRequest(BaseModel):

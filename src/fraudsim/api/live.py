@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import math
 from collections import deque
 from collections.abc import Awaitable, Callable
@@ -20,6 +21,9 @@ from typing import Any
 from fraudsim.detectors.engine import DetectionEngine, EngineConfig, build_detectors
 from fraudsim.detectors.ensemble import RingUpdate, TrackedRing
 from fraudsim.graph.store import InMemoryGraphStore
+from fraudsim.logging.audit import AuditTrail
+from fraudsim.logging.logger import RunLogger
+from fraudsim.logging.replay import detection_records
 from fraudsim.scoring.scorer import RingScorer
 from fraudsim.scoring.stage import ScoringStage
 from fraudsim.simulator.event_generator import EventGenerator
@@ -45,6 +49,7 @@ class LiveRun:
         broadcast: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
         bus: EventBus | None = None,
         engine_config: EngineConfig | None = None,
+        log_dir: Path | None = None,
     ) -> None:
         self.scenario = scenario
         self.seed = seed
@@ -67,6 +72,57 @@ class LiveRun:
         )
         self._batch: list[Event] = []
         self._flagged: set[str] = set()
+        # Logs + audit trail (Milestone 6); same layout as `fraudsim detect` runs, so
+        # `fraudsim replay` works on a live run too.
+        self.log: RunLogger | None = None
+        self.audit: AuditTrail | None = None
+        self.log_dir = Path(log_dir) if log_dir else None
+        if self.log_dir is not None:
+            self.log = RunLogger(self.log_dir, run_id)
+            self.audit = AuditTrail(self.log_dir, run_id)
+            self._batches_file = open(self.log_dir / "batches.jsonl", "w", encoding="utf-8")  # noqa: SIM115
+            self._write_manifest()
+
+    def _write_manifest(self) -> None:
+        assert self.log_dir is not None
+        from fraudsim.detectors.runner import _model_info
+
+        manifest = {
+            "run_id": self.run_id,
+            "scenario": self.scenario,
+            "seed": self.seed,
+            "backend": "memory",
+            "mode": "live",
+            "engine": self.engine.cfg.to_dict(),
+            "detector_overrides": {},
+            "model": _model_info(self.scoring),
+            "control_log": self.generator.control_log,
+            "events": self.events_consumed,
+            "stream_digest": self.generator.digest,
+        }
+        (self.log_dir / "manifest.json").write_text(
+            json.dumps(manifest, indent=2, default=str), encoding="utf-8"
+        )
+
+    def record_feedback(
+        self,
+        ring_id: str,
+        action: str,
+        adaptation: dict[str, Any] | None,
+        analyst_id: str,
+        note: str,
+    ) -> None:
+        """Audit an analyst decision and the threshold change it caused."""
+        if self.audit is None:
+            return
+        self.audit.record(
+            "ANALYST_CONFIRM" if action == "confirm" else "ANALYST_DISMISS",
+            ring_id,
+            {"note": note, "sim_ts": self.generator.ts().isoformat()},
+            actor=analyst_id,
+        )
+        if adaptation is not None:
+            self.audit.record("THRESHOLD_UPDATED", ring_id, adaptation, actor=analyst_id)
 
     async def start(self) -> None:
         subscription = await self.bus.subscribe()
@@ -94,6 +150,23 @@ class LiveRun:
             return
         batch, self._batch = self._batch, []
         report = self.engine.process(batch)
+        if self.log is not None and self.audit is not None:
+            for rec in detection_records(report, self.engine):
+                self.log.detection(rec, event_id=batch[-1].event_id)
+            for upd in report.updates:
+                self.audit.record_update(upd)
+            self._batches_file.write(
+                json.dumps(
+                    {
+                        "batch": report.batch,
+                        "first_seq": report.first_seq,
+                        "last_seq": report.last_seq,
+                        "timings_ms": report.timings_ms,
+                    }
+                )
+                + "\n"
+            )
+            self._batches_file.flush()
         newly: set[str] = set()
         flag_change = "alert" if self.scoring.scorer is not None else "confirmed"
         for upd in report.updates:
@@ -130,6 +203,8 @@ class LiveRun:
         data = event.to_dict()
         self.recent.append(data)
         self._batch.append(event)
+        if self.log is not None:
+            self.log.event(event)
         if self._broadcast is not None:
             await self._broadcast({"type": "EVENT", "event": data})
 
@@ -160,6 +235,14 @@ class LiveRun:
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError, Exception):
                     await task
+        self.close_logs()
+
+    def close_logs(self) -> None:
+        if self.log is not None:
+            self._write_manifest()
+            self.log.close()
+            self._batches_file.close()
+            self.log = None
 
     def snapshot(self) -> dict[str, Any]:
         return {

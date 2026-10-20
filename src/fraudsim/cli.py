@@ -107,6 +107,12 @@ def simulate(scenario: str, seed: int, duration: float | None, out: str) -> None
 @click.option("--no-feedback", is_flag=True, help="Do not tell the adaptive attacker about flags")
 @click.option("--duration", default=None, type=float, help="Override duration (sim seconds)")
 @click.option("--out", default="runs/", help="Directory for run artefacts")
+@click.option(
+    "--model",
+    "model_path",
+    default="models/ring_scorer_lr.joblib",
+    help="Risk model for alerts and explanations ('none' to run without one)",
+)
 def detect(
     scenario: str,
     seed: int,
@@ -118,6 +124,7 @@ def detect(
     no_feedback: bool,
     duration: float | None,
     out: str,
+    model_path: str,
 ) -> None:
     """Simulate a scenario and run incremental detection on it (closed loop)."""
     import json
@@ -125,6 +132,15 @@ def detect(
 
     from fraudsim.detectors.engine import EngineConfig
     from fraudsim.detectors.runner import run_detection
+
+    scoring = None
+    if model_path != "none" and Path(model_path).exists():
+        from fraudsim.scoring.scorer import RingScorer
+        from fraudsim.scoring.stage import ScoringStage
+
+        scoring = ScoringStage(scorer=RingScorer.load(Path(model_path)))
+    elif model_path != "none":
+        click.echo(f"note: {model_path} not found; running without a risk model", err=True)
 
     result = run_detection(
         scenario,
@@ -135,6 +151,7 @@ def detect(
         detector_overrides={d: {"enabled": False} for d in disable},
         attacker_feedback=not no_feedback,
         duration_s=duration,
+        scoring=scoring,
     )
     m = result.manifest
     keys = (
@@ -148,6 +165,42 @@ def detect(
         "metrics",
     )
     click.echo(json.dumps({k: m[k] for k in keys} | {"run_dir": m.get("run_dir")}, indent=2))
+
+
+@main.command()
+@click.argument("run_dir")
+@click.option("--model", "model_path", default=None, help="Override the model path")
+def replay(run_dir: str, model_path: str | None) -> None:
+    """Re-run detection on a logged run and check the results are identical."""
+    import json
+    import sys
+
+    from fraudsim.logging.audit import AuditTrail
+    from fraudsim.logging.replay import replay_run
+
+    result = replay_run(run_dir, model_path)
+    ok, problem = AuditTrail(run_dir, result.run_id).verify()
+    click.echo(
+        json.dumps(result.to_dict() | {"audit_chain_ok": ok, "audit_problem": problem}, indent=2)
+    )
+    sys.exit(0 if result.identical and ok else 1)
+
+
+@main.command("audit-verify")
+@click.argument("run_dir")
+def audit_verify(run_dir: str) -> None:
+    """Verify the hash chain of a run's audit trail."""
+    import json
+    import sys
+    from pathlib import Path
+
+    from fraudsim.logging.audit import AuditTrail
+
+    manifest = json.loads((Path(run_dir) / "manifest.json").read_text(encoding="utf-8"))
+    trail = AuditTrail(run_dir, manifest["run_id"])
+    ok, problem = trail.verify()
+    click.echo(json.dumps({"entries": len(trail.read_entries()), "ok": ok, "problem": problem}))
+    sys.exit(0 if ok else 1)
 
 
 @main.command("compare-latency")

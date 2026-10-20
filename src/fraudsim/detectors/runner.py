@@ -22,6 +22,9 @@ from typing import Any
 
 from fraudsim.detectors.engine import DetectionEngine, EngineConfig, build_detectors
 from fraudsim.graph.store import GraphStore, InMemoryGraphStore
+from fraudsim.logging.audit import AuditTrail
+from fraudsim.logging.logger import RunLogger
+from fraudsim.logging.replay import detection_records
 from fraudsim.metrics.exporters import write_run_metrics
 from fraudsim.simulator.config import parse_simulation_config
 from fraudsim.simulator.event_generator import EventGenerator
@@ -88,11 +91,38 @@ def run_detection(
 
     run_dir: Path | None = None
     files: dict[str, Any] = {}
+    log: RunLogger | None = None
+    audit: AuditTrail | None = None
     if out_dir is not None:
         run_dir = Path(out_dir) / run_id
         run_dir.mkdir(parents=True, exist_ok=False)
-        for name in ("events", "batches", "ring_updates"):
+        for name in ("batches", "ring_updates"):
             files[name] = open(run_dir / f"{name}.jsonl", "w", encoding="utf-8")  # noqa: SIM115
+        log = RunLogger(run_dir, run_id)
+        audit = AuditTrail(run_dir, run_id)
+    last_event_id: str | None = None
+
+    def observe(report: Any) -> None:
+        _write_report(files, report)
+        if log is None or audit is None:
+            return
+        for rec in detection_records(report, engine):
+            log.detection(rec, event_id=last_event_id)
+        for upd in report.updates:
+            audit.record_update(upd)
+        log.metric(
+            {
+                "batch": report.batch,
+                "ts": report.now.isoformat(),
+                "timings_ms": report.timings_ms,
+                "detector_ms": report.detector_ms,
+                "region": report.region,
+                "store_queries": report.store_queries,
+                "graph_stats": report.graph_stats,
+                "rss_mb": report.rss_mb,
+            },
+            component="engine",
+        )
 
     flagged_sent: set[str] = set()
     feedback_calls = 0
@@ -101,13 +131,25 @@ def run_detection(
         batch = []
         for event in gen.iter_events(duration_s):
             batch.append(event)
-            if "events" in files:
-                files["events"].write(json.dumps(event.to_dict(), separators=(",", ":")) + "\n")
+            last_event_id = event.event_id
+            if log is not None:
+                log.event(event)
             if len(batch) < ecfg.batch_size:
                 continue
-            report = engine.process(batch)
+            try:
+                report = engine.process(batch)
+            except Exception as exc:
+                if log is not None:
+                    log.error(
+                        "batch failed",
+                        component="engine",
+                        error=repr(exc),
+                        first_seq=batch[0].seq,
+                        last_seq=batch[-1].seq,
+                    )
+                raise
             batch = []
-            _write_report(files, report)
+            observe(report)
             if attacker_feedback:
                 newly = _flagged_in(report, alert_mode) - flagged_sent
                 if newly:
@@ -115,7 +157,7 @@ def run_detection(
                     flagged_sent |= newly
                     feedback_calls += 1
         if batch:
-            _write_report(files, engine.process(batch))
+            observe(engine.process(batch))
     finally:
         for f in files.values():
             f.close()
@@ -152,8 +194,11 @@ def run_detection(
             for k in ("ring", "user", "rings_detected", "rings_missed", "false_positive_rings")
         },
         "python": platform.python_version(),
+        "model": _model_info(scoring),
     }
-    if run_dir is not None:
+    if run_dir is not None and log is not None:
+        log.metric({"summary": metrics.summary}, component="evaluation")
+        log.close()
         write_run_metrics(metrics, run_dir / "metrics")
         gen.ledger.export_jsonl(run_dir / "ground_truth.jsonl")
         gen.ledger.export_log(run_dir / "ground_truth_log.jsonl")
@@ -164,6 +209,16 @@ def run_detection(
             json.dump(manifest, f, indent=2, default=str)
         manifest["run_dir"] = str(run_dir)
     return DetectionRun(manifest, engine, gen, metrics)
+
+
+def _model_info(scoring: Any) -> dict[str, Any] | None:
+    scorer = getattr(scoring, "scorer", None)
+    path = getattr(scorer, "source_path", None)
+    if scorer is None or path is None:
+        return None
+    from fraudsim.logging.replay import file_sha256
+
+    return {"path": str(path), "sha256": file_sha256(path), "type": scorer.model_type}
 
 
 def hub_degrees(gen: EventGenerator) -> dict[str, int]:

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,7 +15,9 @@ from fraudsim.api.main import app
 
 
 @pytest.fixture
-def client() -> Iterator[TestClient]:
+def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    # Live runs write their logs and audit trail under FRAUDSIM_RUNS_DIR/live/<run_id>.
+    monkeypatch.setenv("FRAUDSIM_RUNS_DIR", str(tmp_path))
     # Context manager keeps one event loop alive across requests, so the background
     # player task started by /runs/start survives until the test ends.
     with TestClient(app) as c:
@@ -140,3 +143,41 @@ def test_live_metrics_come_from_the_run(client: TestClient):
     assert m["summary"]["true_rings"] == 4
     prom = client.get("/metrics").text
     assert 'fraudsim_run_ring_recall{run_id="' in prom
+
+
+def test_live_run_is_logged_audited_and_replayable(client: TestClient, tmp_path: Path):
+    from fraudsim.logging.audit import AuditTrail
+    from fraudsim.logging.replay import replay_run
+
+    run_id = client.post(
+        "/runs/start", json={"scenario": "baseline", "seed": 4, "speed_multiplier": 0}
+    ).json()["run_id"]
+    for _ in range(300):
+        if client.get("/status").json()["status"] == "finished":
+            break
+        time.sleep(0.05)
+    time.sleep(0.6)
+    rings = client.get("/rings").json()
+    assert rings
+    resp = client.post(f"/rings/{rings[0]['ring_id']}/feedback", json={"action": "dismiss"})
+    assert resp.json()["threshold_adaptation"]["action"] == "dismiss"
+    client.post("/runs/stop")
+
+    run_dir = tmp_path / "live" / run_id
+    for name in (
+        "events.jsonl",
+        "detections.jsonl",
+        "batches.jsonl",
+        "audit.jsonl",
+        "manifest.json",
+    ):
+        assert (run_dir / name).exists(), name
+    trail = AuditTrail(run_dir, run_id)
+    ok, problem = trail.verify()
+    assert ok, problem
+    kinds = [e.action_type for e in trail.read_entries()]
+    assert "ANALYST_DISMISS" in kinds and "THRESHOLD_UPDATED" in kinds
+    # Live batches were cut by wall-clock idle timeouts; replay reuses the logged
+    # boundaries, so the detections must still be identical.
+    result = replay_run(run_dir)
+    assert result.identical, result.differences

@@ -62,12 +62,23 @@ class RingDetailResponse(BaseModel):
 
 
 class MetricsResponse(BaseModel):
-    precision: float = 0.0
-    recall: float = 0.0
-    f1: float = 0.0
-    latency_p50_ms: float = 0.0
-    latency_p95_ms: float = 0.0
-    latency_p99_ms: float = 0.0
-    throughput_events_per_sec: float = 0.0
+    """Live metrics of the current run. None = not measurable yet (never a placeholder)."""
+
+    run_id: str | None = None
+    sim_time_s: float | None = None
+    precision: float | None = None  # ring level, against the simulator's ground truth
+    recall: float | None = None
+    f1: float | None = None
+    rings_detected: int = 0
+    rings_missed: int = 0
+    false_positive_rings: int = 0
+    user_precision: float | None = None
+    user_recall: float | None = None
+    time_to_detect_p50_s: float | None = None
+    latency_p50_ms: float | None = None  # detection per batch
+    latency_p95_ms: float | None = None
+    latency_p99_ms: float | None = None
+    throughput_events_per_sec: float | None = None  # events / engine processing time
     total_events: int = 0
     active_rings: int = 0
+    summary: dict[str, Any] = Field(default_factory=dict)

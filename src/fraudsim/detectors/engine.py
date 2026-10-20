@@ -49,6 +49,7 @@ class EngineConfig:
     ttl_s: float | None = None  # prune links/transactions older than this
     prune_interval_s: float = 30.0
     sweep_interval_s: float = 60.0  # re-check tracked rings (time decay, pruning)
+    stats_interval_s: float = 10.0  # sample graph size and process memory this often
 
     def to_dict(self) -> dict[str, Any]:
         return {k: getattr(self, k) for k in self.__dataclass_fields__}
@@ -72,6 +73,9 @@ class BatchReport:
     full_run: bool = False
     pruned: dict[str, int] = field(default_factory=dict)
     store_queries: int | None = None
+    db_hits: int | None = None  # from sampled PROFILE queries (Neo4j only)
+    graph_stats: dict[str, int] | None = None  # sampled every stats_interval_s
+    rss_mb: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -89,7 +93,19 @@ class BatchReport:
             "full_run": self.full_run,
             "pruned": self.pruned,
             "store_queries": self.store_queries,
+            "db_hits": self.db_hits,
+            "graph_stats": self.graph_stats,
+            "rss_mb": self.rss_mb,
         }
+
+
+def _rss_mb() -> float | None:
+    try:
+        import psutil
+
+        return round(psutil.Process().memory_info().rss / 2**20, 1)
+    except Exception:
+        return None
 
 
 def _ms(start: float) -> float:
@@ -119,6 +135,7 @@ class DetectionEngine:
         self._last_full_t: float | None = None
         self._last_prune_t: float | None = None
         self._last_sweep_t: float | None = None
+        self._last_stats_t: float | None = None
         for d in detectors:
             if d.store is None:
                 d.store = store
@@ -140,6 +157,7 @@ class DetectionEngine:
         now = datetime.fromtimestamp(now_t, tz=UTC)
         since_t = now_t - cfg.window_s
         queries_before = getattr(self.store, "queries", None)
+        hits_before = getattr(self.store, "db_hits", None)
         timings: dict[str, float] = {}
         detector_ms: dict[str, float] = {}
         counts: dict[str, int] = {}
@@ -211,8 +229,14 @@ class DetectionEngine:
             timings["prune"] = _ms(t)
 
         timings["total"] = _ms(t_total)
+        graph_stats, rss_mb = None, None
+        if self._due(self._last_stats_t, cfg.stats_interval_s, now_t):
+            self._last_stats_t = now_t
+            graph_stats = self.store.stats()
+            rss_mb = _rss_mb()
         self._batch += 1
         queries_after = getattr(self.store, "queries", None)
+        hits_after = getattr(self.store, "db_hits", None)
         report = BatchReport(
             batch=self._batch,
             n_events=len(events),
@@ -232,6 +256,13 @@ class DetectionEngine:
                 if queries_before is not None and queries_after is not None
                 else None
             ),
+            db_hits=(
+                hits_after - hits_before
+                if hits_before is not None and hits_after is not None
+                else None
+            ),
+            graph_stats=graph_stats,
+            rss_mb=rss_mb,
         )
         self.reports.append(report)
         return report

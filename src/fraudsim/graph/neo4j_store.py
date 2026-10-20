@@ -71,12 +71,22 @@ class Neo4jGraphStore(GraphStore):
 
     backend = "neo4j"
 
-    def __init__(self, client: Neo4jClient) -> None:
+    def __init__(self, client: Neo4jClient, profile_every: int = 0) -> None:
         self.client = client
         self.queries = 0  # Cypher round trips issued through this store
+        # Every `profile_every`-th read query runs under PROFILE and its database
+        # hits are accumulated (0 = never; profiling slows queries down).
+        self.profile_every = profile_every
+        self.db_hits = 0
+        self.profiled_queries = 0
 
     def _q(self, cypher: str, **params: object) -> list[dict[str, object]]:
         self.queries += 1
+        if self.profile_every and self.queries % self.profile_every == 0:
+            rows, hits = self.client.run_profiled(cypher, **params)
+            self.db_hits += hits
+            self.profiled_queries += 1
+            return rows
         return self.client.run_query(cypher, **params)
 
     def apply(self, events: list[Event]) -> set[str]:

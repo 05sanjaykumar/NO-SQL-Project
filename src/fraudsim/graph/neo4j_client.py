@@ -140,6 +140,14 @@ class Neo4jClient:
             result = session.run(cypher, **params)
             return [dict(record) for record in result]
 
+    def run_profiled(self, cypher: str, **params: Any) -> tuple[list[dict[str, Any]], int]:
+        """Run with PROFILE; return the rows and the total database hits of the plan."""
+        with self.session() as session:
+            result = session.run("PROFILE " + cypher, **params)
+            rows = [dict(record) for record in result]
+            summary = result.consume()
+        return rows, _db_hits(summary.profile or {})
+
     def get_node_degrees(self, label: str, id_property: str) -> dict[str, int]:
         """Return {node_id: degree} for all nodes of a given label."""
         cypher = f"""
@@ -241,6 +249,12 @@ class Neo4jClient:
         """Delete links and transactions older than now_t - ttl_seconds. Returns rows dropped."""
         dropped = self.prune_before(now_t - ttl_seconds)
         return dropped["links"] + dropped["transactions"]
+
+
+def _db_hits(plan: dict[str, Any]) -> int:
+    """Sum dbHits over a PROFILE plan tree."""
+    hits = int(plan.get("dbHits", 0) or 0)
+    return hits + sum(_db_hits(child) for child in plan.get("children", []) or [])
 
 
 def group_consecutive(events: list[Event]) -> list[tuple[EventType, list[dict[str, Any]]]]:

@@ -27,10 +27,10 @@ high-degree entities generate large volumes of false positives. On a controlled
 dataset of 126 nodes and 185 relationships containing deliberately planted
 ground-truth rings, degree bounding improved detection precision from 20% to
 100% while leaving recall unchanged at 100%. Repeating the experiment at scales
-up to 12,590 nodes shows that unbounded precision degrades monotonically to
-0.30%, because false positives are governed by the degree of the legitimate hub
-and that degree grows with the population, whereas bounded precision is
-scale-invariant. A separate measurement distinguishes anchored traversal, whose
+up to 12,590 nodes, with both the legitimate hub and the number of planted rings
+growing with the population, shows that the unbounded query accumulates false
+positives in proportion to the user base, from 12 to 997, while the bounded
+query returns exactly the planted rings at every scale. A separate measurement distinguishes anchored traversal, whose
 latency is flat across a hundredfold increase in graph size, from label scans,
 whose latency is not. We characterise the precision-recall trade-off inherent to
 degree bounding and identify adaptive threshold selection as the principal
@@ -76,8 +76,8 @@ detection in Neo4j. The contributions are:
    distinct fraud indicators.
 2. An empirical evaluation of degree-bounded pattern matching as a mitigation
    for false positives arising from legitimately high-degree nodes, measured
-   across four dataset scales, showing that the benefit of the bound grows with
-   graph size rather than being fixed.
+   across four dataset scales, showing that the review burden imposed by
+   omitting the bound grows in proportion to the user population.
 3. A measurement separating anchored traversal from label scanning, clarifying
    which detection queries actually inherit the size-independence that
    index-free adjacency provides.
@@ -224,15 +224,20 @@ the dataset at arbitrary scale and render matched subgraphs. The interface is an
 operational convenience rather than a contribution; it is reported here because
 the scaling measurements in Section V-C were collected through it.
 
-**Planted ground truth:**
+**Planted ground truth at the default size:**
 
 | Structure | Composition |
 |---|---|
-| Ring A | 4 users sharing one device |
-| Ring B | 3 users sharing one credential |
-| Ring C | 3 users sharing one network address |
+| Device ring | 4 users sharing one device |
+| Card ring | 3 users sharing one credential |
+| IP ring | 3 users sharing one network address |
 | Cycle | 3 users in a closed transfer loop, with decreasing amounts |
 | Hub | 12 users sharing one network address - legitimate, not fraud |
+
+The number of planted rings scales with the user count, holding the fraudulent
+fraction near 8%, while the structures above remain at fixed positions so the
+default configuration is reproducible. At 3000 users the generator plants 20
+rings of each type, with sizes drawn between three and five members.
 
 The hub is the adversarial case for P3. It is structurally identical to Ring C
 and distinguishable only by degree.
@@ -277,29 +282,43 @@ the planner no longer expands the hub neighbourhood.
 ### C. Scaling Behaviour
 
 To establish whether the result depends on dataset size, the graph was
-regenerated at four scales with the planted structures held constant. The
-legitimate hub scales with the population, as a shared corporate gateway would,
-while Ring C remains a three-member cluster behind a low-degree node.
+regenerated at four scales. Both the legitimate hub and the number of planted
+rings scale with the population, so the proportion of fraudulent accounts stays
+roughly constant rather than thinning out as the graph grows.
 
 TABLE III. DEGREE BOUNDING ACROSS DATASET SCALE
 
-| Users | Nodes | Bound | Flagged | TP | FP | Precision | Recall |
-|---|---|---|---|---|---|---|---|
-| 30 | 126 | none | 15 | 3 | 12 | 20.00% | 100% |
-| 30 | 126 | t=10 | 3 | 3 | 0 | 100% | 100% |
-| 200 | 840 | none | 66 | 3 | 63 | 4.55% | 100% |
-| 200 | 840 | t=10 | 3 | 3 | 0 | 100% | 100% |
-| 1000 | 4197 | none | 333 | 3 | 330 | 0.90% | 100% |
-| 1000 | 4197 | t=10 | 3 | 3 | 0 | 100% | 100% |
-| 3000 | 12590 | none | 1000 | 3 | 997 | 0.30% | 100% |
-| 3000 | 12590 | t=10 | 3 | 3 | 0 | 100% | 100% |
+| Users | Nodes | IP rings | Bound | Flagged | TP | FP | Precision | Recall |
+|---|---|---|---|---|---|---|---|---|
+| 30 | 126 | 1 | none | 15 | 3 | 12 | 20.00% | 100% |
+| 30 | 126 | 1 | t=10 | 3 | 3 | 0 | 100% | 100% |
+| 200 | 840 | 1 | none | 66 | 3 | 63 | 4.55% | 100% |
+| 200 | 840 | 1 | t=10 | 3 | 3 | 0 | 100% | 100% |
+| 1000 | 4197 | 6 | none | 356 | 26 | 330 | 7.30% | 100% |
+| 1000 | 4197 | 6 | t=10 | 26 | 26 | 0 | 100% | 100% |
+| 3000 | 12590 | 20 | none | 1072 | 75 | 997 | 7.00% | 100% |
+| 3000 | 12590 | 20 | t=10 | 75 | 75 | 0 | 100% | 100% |
 
-Unbounded precision degrades monotonically with scale, from 20.00% at 30 users
-to 0.30% at 3000, because the false positive count is governed by the degree of
-the legitimate hub, which grows with the population. The bounded variant returns
-exactly the planted ring at every scale, so its precision is scale-invariant.
-This is a stronger statement than the single-point comparison: the benefit of
-the bound is not fixed, it increases with the size of the graph.
+The quantity that scales cleanly is the false positive count, which rises from
+12 to 997 across the range. It is governed by the degree of the legitimate hub,
+and that degree grows with the user population. In operational terms the
+unbounded query hands an analyst a review queue proportional to the size of the
+customer base, irrespective of how much fraud is actually present.
+
+Unbounded precision does not decay monotonically; it falls from 20.00% to 4.55%
+and then settles near 7%. This is because true positives grow with the
+population as well, once the number of planted rings scales. Precision is
+therefore a ratio between two quantities that both increase, and its value
+depends on the assumed fraud prevalence. The bounded variant avoids this
+dependence entirely: it returns exactly the planted rings at every scale, so its
+precision is 100% regardless of prevalence.
+
+Recall is 100% in every configuration. At the largest scale this is measured
+across 20 rings totalling 75 users rather than a single three-member cluster, so
+it is a more substantive result than a single-ring experiment would give.
+It nonetheless remains a property of the construction: every planted ring sits
+behind a low-degree artefact by design, and a ring sharing a high-degree one
+would be excluded by the same predicate that removes the false positives.
 
 A second experiment distinguishes two query shapes. A *scanning* query matches
 every `(:User)-[:USED_DEVICE]->(:Device)` pair before filtering. An *anchored*
@@ -309,16 +328,17 @@ TABLE IV. QUERY LATENCY BY SHAPE AND SCALE (MEDIAN OF 5)
 
 | Users | Nodes | Scanning | Anchored |
 |---|---|---|---|
-| 30 | 126 | 8.5 ms | 6.2 ms |
-| 200 | 840 | 7.6 ms | 4.5 ms |
-| 1000 | 4197 | 10.7 ms | 4.3 ms |
-| 3000 | 12590 | 16.7 ms | 7.6 ms |
+| 30 | 126 | 2.9 ms | 5.6 ms |
+| 200 | 840 | 5.4 ms | 4.7 ms |
+| 1000 | 4197 | 6.4 ms | 2.2 ms |
+| 3000 | 12590 | 10.0 ms | 4.7 ms |
 
-Across a hundredfold increase in graph size, anchored traversal latency remains
-effectively flat while scanning latency approximately doubles. This is the
-expected consequence of index-free adjacency: the cost of an anchored traversal
-is bound to the local neighbourhood rather than to total cardinality, whereas a
-label scan is necessarily proportional to the number of matching records.
+Across a hundredfold increase in graph size, anchored traversal latency shows no
+upward trend, varying between 2.2 ms and 5.6 ms with no relation to cardinality.
+Scanning latency rises steadily from 2.9 ms to 10.0 ms. This is the expected
+consequence of index-free adjacency: the cost of an anchored traversal is bound
+to the local neighbourhood, whereas a label scan is proportional to the number
+of matching records.
 
 We note that this distinction is often elided in informal descriptions of graph
 databases. Index-free adjacency makes *local traversal* independent of database

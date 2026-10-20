@@ -61,7 +61,7 @@ QUERIES = {
         "cypher": "MATCH (n)-[r]->(m) RETURN n, r, m LIMIT 400",
     },
     "q1": {
-        "truth_ring": "A",
+        "truth_ring": "device",
         "label": "Shared device ring",
         "note": "Three or more users on one device.",
         "cypher": """MATCH p = (u:User)-[:USED_DEVICE]->(d:Device)
@@ -69,7 +69,7 @@ QUERIES = {
                      RETURN p LIMIT 300""",
     },
     "q2": {
-        "truth_ring": "B",
+        "truth_ring": "card",
         "label": "Shared card ring",
         "note": "Three or more users on one payment credential.",
         "cypher": """MATCH p = (u:User)-[:HAS_CARD]->(c:CreditCard)
@@ -87,7 +87,7 @@ QUERIES = {
                      RETURN p LIMIT 50""",
     },
     "q4": {
-        "truth_ring": "C",
+        "truth_ring": "ip",
         "label": "Shared IP (degree bounded)",
         "note": "Drag the threshold. Above the hub size the office gateway floods the result.",
         "cypher": """MATCH p = (u:User)-[:LOGGED_IN_FROM]->(ip:IPAddress)
@@ -185,7 +185,10 @@ def run(qid: str, max_degree: int = 10, uid: str = "u01"):
     users = [n for n in nodes if n["label"] == "User"]
     flagged = len(users)
     target = q.get("truth_ring")
-    true_pos = len([n for n in users if n["ring"] == target]) if target else None
+    # Ring labels are "device-1", "card-2", "cycle-1" and so on, so a prefix
+    # match counts every ring of the kind this query is meant to find.
+    true_pos = (len([n for n in users if (n["ring"] or "").startswith(target)])
+                if target else None)
 
     return {
         "nodes": nodes, "edges": edges, "ms": ms,

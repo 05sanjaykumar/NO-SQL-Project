@@ -11,6 +11,7 @@ Run:  ./.venv/bin/python app.py      then open http://localhost:8010
 
 import os
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
@@ -19,7 +20,32 @@ from neo4j import GraphDatabase
 
 import seed
 
-app = FastAPI(title="Fraud ring detection")
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Wait for Neo4j, and seed the graph if it is empty."""
+    for attempt in range(60):
+        try:
+            driver.verify_connectivity()
+            break
+        except Exception:
+            print(f"waiting for neo4j ({attempt + 1}/60)...", flush=True)
+            time.sleep(2)
+    else:
+        raise RuntimeError("could not reach neo4j")
+
+    with driver.session() as s:
+        empty = s.run("MATCH (n) RETURN count(n) AS c").single()["c"] == 0
+    if empty:
+        n = int(os.environ.get("SEED_USERS", seed.DEFAULT_USERS))
+        print(f"graph is empty - seeding with {n} users", flush=True)
+        data, truth = seed.generate(n)
+        seed.load(driver, data)
+        print(f"seeded {truth['total_nodes']} nodes", flush=True)
+    yield
+    driver.close()
+
+
+app = FastAPI(title="Fraud ring detection", lifespan=lifespan)
 driver = GraphDatabase.driver(seed.URI, auth=seed.AUTH)
 
 # ---------------------------------------------------------------- queries
@@ -228,4 +254,5 @@ def index():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=int(os.environ.get("PORT", 8010)))
+    uvicorn.run(app, host=os.environ.get("HOST", "127.0.0.1"),
+                port=int(os.environ.get("PORT", 8010)))

@@ -19,14 +19,17 @@ Run:  python seed.py                  # 30 users, the documented dataset
 
 import argparse
 import math
+import os
 import random
 import time
 from collections import defaultdict
 
 from neo4j import GraphDatabase
 
-URI = "bolt://localhost:7687"
-AUTH = ("neo4j", "fraudring123")
+# Inside Docker the database is reachable by service name; natively it is on
+# localhost. Both paths work without editing anything.
+URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+AUTH = (os.environ.get("NEO4J_USER", "neo4j"), os.environ.get("NEO4J_PASSWORD", "fraudring123"))
 
 DEFAULT_USERS = 30
 MIN_USERS = 30  # the planted rings occupy fixed positions up to index 28

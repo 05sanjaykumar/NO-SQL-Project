@@ -12,11 +12,19 @@ pattern matching, on a small controlled dataset with known planted rings.
 ./start.sh
 ```
 
-Starts Docker if needed, brings up Neo4j, installs dependencies on first run,
-seeds the graph and launches the dashboard. Safe to re-run. Pass a user count
-to change the dataset size, e.g. `./start.sh 1000`.
+Or straight from Docker, which is all `start.sh` does:
 
-Stop everything with `./stop.sh` - the graph survives in the Docker volume.
+```bash
+docker compose up -d --build
+```
+
+Both containers come up together, the dashboard waits for Neo4j to actually
+accept queries, and the graph is seeded automatically the first time. About
+20 seconds from a clean checkout. **Python is not needed on the host** - it
+runs inside the container.
+
+Stop with `./stop.sh` or `docker compose down`. The graph survives in the
+Docker volume; add `-v` to wipe it and start fresh.
 
 Then open **http://localhost:8010** for the dashboard - buttons for each query,
 a slider for the degree threshold, and a control to regenerate the dataset at
@@ -36,6 +44,7 @@ Shut down with `docker compose down` (add `-v` to also wipe the data volume).
 | `seed.py` | Builds the graph and plants the fraud rings |
 | `queries.cypher` | The detection queries |
 | `start.sh` / `stop.sh` | Bring the whole project up or down in one command |
+| `Dockerfile` | Image for the dashboard service |
 | `app.py` | FastAPI service: runs queries, reseeds, scaling benchmark |
 | `static/index.html` | Dashboard - Cytoscape graph, query buttons, degree slider |
 | `paper/IEEE_PAPER.md` | Write-up in IEEE format |

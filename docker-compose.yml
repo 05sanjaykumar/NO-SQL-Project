@@ -10,6 +10,30 @@ services:
       NEO4J_server_memory_heap_max__size: 512M
     volumes:
       - neo4j-data:/data
+    healthcheck:
+      # The container reports "started" well before Neo4j accepts queries, so
+      # the dashboard has to wait on a real query rather than on the container.
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p fraudring123 'RETURN 1' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 15s
+
+  dashboard:
+    build: .
+    container_name: fraud-dashboard
+    ports:
+      - "8010:8010"
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      HOST: 0.0.0.0
+      PORT: 8010
+      SEED_USERS: 30        # seeded on first start if the graph is empty
+    volumes:
+      - .:/app              # edits take effect on restart, no rebuild needed
+    depends_on:
+      neo4j:
+        condition: service_healthy
 
 volumes:
   neo4j-data:

@@ -106,3 +106,18 @@ def test_unknown_scenario_and_controls_without_run(client: TestClient):
     assert client.post("/runs/start", json={"scenario": "nope"}).status_code == 404
     client.post("/runs/stop")
     assert client.post("/runs/rate", json={"events_per_second": 1}).status_code == 409
+
+
+def test_live_run_detects_rings(client: TestClient):
+    client.post("/runs/start", json={"scenario": "baseline", "seed": 3, "speed_multiplier": 0})
+    for _ in range(300):
+        status = client.get("/status").json()
+        if status["status"] == "finished":
+            break
+        time.sleep(0.05)
+    time.sleep(0.6)  # let the consumer flush its last batch
+    rings = client.get("/rings").json()
+    assert any(r["status"] == "confirmed" for r in rings)
+    one = client.get(f"/rings/{rings[0]['ring_id']}").json()
+    assert one["members"] and one["explanation"]["detectors"]
+    assert client.get("/status").json()["rings_detected"] >= 1

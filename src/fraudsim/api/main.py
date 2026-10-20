@@ -65,7 +65,11 @@ async def get_status() -> RunStatusResponse:
         scenario=state.scenario,
         seed=state.seed,
         events_emitted=state.events_emitted,
-        rings_detected=len(state.active_rings),
+        rings_detected=(
+            len(state.live.engine.tracker.confirmed())
+            if state.live is not None
+            else len(state.active_rings)
+        ),
         speed_multiplier=live.get("speed_multiplier", state.speed_multiplier),
         sim_time_s=live.get("sim_time_s", 0.0),
         rate=live.get("rate", 0.0),
@@ -162,13 +166,20 @@ async def recent_events(limit: int = 50) -> list[dict[str, Any]]:
     return list(state.live.recent)[-max(0, limit) :]
 
 
+def _sync_rings() -> None:
+    if state.live is not None:
+        state.active_rings.update({r["ring_id"]: r for r in state.live.rings()})
+
+
 @app.get("/rings", response_model=list[RingDetailResponse])
 async def list_rings() -> list[RingDetailResponse]:
+    _sync_rings()
     return [RingDetailResponse(**r) for r in state.active_rings.values()]
 
 
 @app.get("/rings/{ring_id}", response_model=RingDetailResponse)
 async def get_ring(ring_id: str) -> RingDetailResponse:
+    _sync_rings()
     if ring_id not in state.active_rings:
         raise HTTPException(status_code=404, detail=f"Ring '{ring_id}' not found")
     return RingDetailResponse(**state.active_rings[ring_id])

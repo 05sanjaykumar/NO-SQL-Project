@@ -2,20 +2,25 @@
 Base detector interface.
 
 Every detector implements this ABC. The uniform interface enables:
-- Ablation: one flag to enable/disable each detector
-- Ensemble: detectors compose naturally
-- Testing: mock detectors for unit tests
+- Ablation: one flag (`config.enabled`) to switch each detector off
+- Ensemble: candidates from any detector merge into tracked rings
+- Testing: detectors run on hand-built GraphViews, no database needed
+
+Incremental detectors (`incremental = True`) evaluate the GraphView of the
+dirty region for every micro-batch. Full-graph detectors (`incremental =
+False`: the static Cypher baseline, GDS community detection) run on a
+timer against the whole graph, which is how they would be deployed.
 """
 
 from __future__ import annotations
 
+import hashlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any
 
-from fraudsim.graph.neo4j_client import Neo4jClient
-from fraudsim.types import DetectorType, RingCandidate
+from fraudsim.graph.store import GraphStore, GraphView
+from fraudsim.types import DetectorType, RingCandidate, RingType
 
 
 @dataclass(slots=True)
@@ -36,15 +41,16 @@ class BaseDetector(ABC):
     """
     Abstract base class for all fraud ring detectors.
 
-    Each detector:
-    1. Receives a dirty set (set of user_ids touched by recent events)
-    2. Queries the graph for suspicious patterns in that region
-    3. Returns a list of RingCandidate objects
+    Each detector receives a GraphView (the region to evaluate) and returns
+    RingCandidate objects. Candidate ids are only local labels; stable ring
+    identity across time is assigned by the RingTracker.
     """
 
-    def __init__(self, client: Neo4jClient, config: DetectorConfig) -> None:
-        self._client = client
+    incremental: bool = True
+
+    def __init__(self, config: DetectorConfig, store: GraphStore | None = None) -> None:
         self._config = config
+        self.store = store
 
     @property
     def name(self) -> str:
@@ -63,28 +69,28 @@ class BaseDetector(ABC):
         return self._config.enabled
 
     @abstractmethod
-    def detect(
+    def detect(self, view: GraphView) -> list[RingCandidate]:
+        """Evaluate the region in `view` and return candidate rings."""
+
+    def _candidate(
         self,
-        dirty_set: set[str] | None = None,
-        ts: datetime | None = None,
-    ) -> list[RingCandidate]:
-        """
-        Run detection and return candidate rings.
-
-        Parameters
-        ----------
-        dirty_set
-            Set of user_ids to re-evaluate. If None, evaluate the entire graph
-            (full recomputation mode, used by StaticCypherBaseline).
-        ts
-            Current simulation time. Detectors may use this for windowing.
-
-        Returns
-        -------
-        list[RingCandidate]
-            Detected ring candidates.
-        """
-
-    def detect_full(self, ts: datetime | None = None) -> list[RingCandidate]:
-        """Force full-graph detection (no dirty set optimization)."""
-        return self.detect(dirty_set=None, ts=ts)
+        ring_type: RingType,
+        members: set[str],
+        view: GraphView,
+        score: float,
+        evidence: dict[str, Any],
+        shared_attributes: dict[str, Any] | None = None,
+    ) -> RingCandidate:
+        key = hashlib.sha1(",".join(sorted(members)).encode()).hexdigest()[:10]
+        return RingCandidate(
+            ring_id=f"{self.detector_type.value}:{key}",
+            detector=self.detector_type,
+            ring_type=ring_type,
+            members=set(members),
+            score=round(float(score), 6),
+            confidence=round(float(score), 6),
+            evidence=evidence,
+            shared_attributes=shared_attributes or {},
+            first_seen=view.now,
+            last_seen=view.now,
+        )

@@ -1,24 +1,68 @@
 """
 StaticCypherBaseline detector.
 
-Wraps the original Q1-Q5 queries from queries.cypher as a proper detector
-implementing the BaseDetector interface. Always runs full-graph — no
-incremental optimization. Serves as the comparison baseline for all
-experiments.
+Wraps the original Q1, Q2, Q3 and Q4b queries from queries.cypher as a
+detector. It always evaluates the whole graph and is run on a timer
+(`incremental = False`). It is the comparison baseline for every
+experiment, and its full-graph latency against incremental detection is a
+key result (C2).
+
+On a Neo4j store it runs the original Cypher (one change for streaming:
+departed users, `active = false`, are excluded). On the in-memory store
+it evaluates the same rules in Python, so accuracy sweeps can run without
+a database. Latency numbers for the paper come from the Neo4j path only.
 """
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from typing import Any
 
 import structlog
 
 from fraudsim.detectors.base import BaseDetector, DetectorConfig
-from fraudsim.graph.neo4j_client import Neo4jClient
-from fraudsim.types import DetectorType, RingCandidate, RingStatus, RingType
+from fraudsim.graph.store import GraphStore, GraphView
+from fraudsim.types import DetectorType, RingCandidate, RingType
 
 logger = structlog.get_logger(__name__)
+
+# Original queries (queries.cypher), with `WHERE u.active` added for streaming.
+Q1_SHARED_DEVICE = """
+MATCH (u:User)-[:USED_DEVICE]->(d:Device)
+WHERE u.active
+WITH d, collect(u.user_id) AS members, count(*) AS ring_size
+WHERE ring_size >= $min_size
+RETURN d.device_id AS shared, ring_size, members
+ORDER BY ring_size DESC
+"""
+
+Q2_SHARED_CARD = """
+MATCH (u:User)-[:HAS_CARD]->(c:CreditCard)
+WHERE u.active
+WITH c, collect(u.user_id) AS members, count(*) AS ring_size
+WHERE ring_size >= $min_size
+RETURN c.card_id AS shared, ring_size, members
+ORDER BY ring_size DESC
+"""
+
+Q3_MONEY_CYCLE = """
+MATCH (a:User)-[:PERFORMED]->(:Transaction)-[:SENT_TO]->(b:User)
+      -[:PERFORMED]->(:Transaction)-[:SENT_TO]->(c:User)
+      -[:PERFORMED]->(:Transaction)-[:SENT_TO]->(a)
+WHERE a.user_id < b.user_id AND a.user_id < c.user_id
+  AND a.active AND b.active AND c.active
+RETURN DISTINCT a.user_id AS a, b.user_id AS b, c.user_id AS c
+"""
+
+Q4_SHARED_IP_CAPPED = """
+MATCH (u:User)-[:LOGGED_IN_FROM]->(ip:IPAddress)
+WHERE u.active
+WITH ip, collect(u.user_id) AS members, count(*) AS ring_size
+WHERE ring_size >= $min_size AND ring_size < $max_degree
+RETURN ip.ip AS shared, ring_size, members
+ORDER BY ring_size DESC
+"""
 
 
 @dataclass(slots=True)
@@ -28,7 +72,7 @@ class StaticCypherConfig(DetectorConfig):
     detector_type: DetectorType = DetectorType.STATIC_CYPHER
     name: str = "StaticCypherBaseline"
     min_ring_size: int = 3
-    max_degree_cap: int = 10  # the degree cap from Q4b
+    max_degree_cap: int = 10  # the degree cap from Q4b (100 reproduces Q4a)
     enable_q1_shared_device: bool = True
     enable_q2_shared_card: bool = True
     enable_q3_money_cycle: bool = True
@@ -36,211 +80,104 @@ class StaticCypherConfig(DetectorConfig):
 
 
 class StaticCypherBaseline(BaseDetector):
-    """
-    The original queries from the course project, wrapped as a detector.
+    """The original course-project queries, wrapped as a full-graph detector."""
 
-    Runs the existing Q1 (shared device), Q2 (shared card), Q3 (money cycle),
-    and Q4b (shared IP with degree cap) queries against the full graph.
-
-    This detector does NOT support incremental detection — it always
-    evaluates the entire graph. It exists purely as a comparison baseline.
-    """
+    incremental = False
 
     def __init__(
         self,
-        client: Neo4jClient,
+        client: Any = None,
         config: StaticCypherConfig | None = None,
+        store: GraphStore | None = None,
     ) -> None:
-        super().__init__(client, config or StaticCypherConfig())
-        self._cfg: StaticCypherConfig = config or StaticCypherConfig()
+        super().__init__(config or StaticCypherConfig(), store)
+        self.cfg: StaticCypherConfig = self._config  # type: ignore[assignment]
+        self._client = client if client is not None else getattr(store, "client", None)
 
-    def detect(
-        self,
-        dirty_set: set[str] | None = None,
-        ts: datetime | None = None,
-    ) -> list[RingCandidate]:
-        """
-        Run all enabled queries and return detected rings.
+    def detect(self, view: GraphView) -> list[RingCandidate]:
+        """Run every enabled query against the whole graph. The view only supplies `now`."""
+        if self.store is not None and self.store.backend == "memory":
+            rows = self._rows_in_memory(view.now_t)
+        elif self._client is not None:
+            rows = self._rows_cypher()
+        else:
+            raise RuntimeError("StaticCypherBaseline needs a Neo4j client or an in-memory store")
+        return [self._to_candidate(kind, row, view) for kind, row in rows]
 
-        The dirty_set parameter is IGNORED — this baseline always does
-        full-graph evaluation. This is deliberate: the latency comparison
-        between this and the incremental detectors is a key result (C2).
-        """
-        candidates: list[RingCandidate] = []
+    # ─── Neo4j path ───────────────────────────────────────────────────
 
-        if self._cfg.enable_q1_shared_device:
-            candidates.extend(self._q1_shared_device())
+    def _rows_cypher(self) -> list[tuple[str, dict[str, Any]]]:
+        cfg, run = self.cfg, self._client.run_query
+        rows: list[tuple[str, dict[str, Any]]] = []
+        if cfg.enable_q1_shared_device:
+            rows += [("Q1", r) for r in run(Q1_SHARED_DEVICE, min_size=cfg.min_ring_size)]
+        if cfg.enable_q2_shared_card:
+            rows += [("Q2", r) for r in run(Q2_SHARED_CARD, min_size=cfg.min_ring_size)]
+        if cfg.enable_q3_money_cycle:
+            rows += [("Q3", r) for r in run(Q3_MONEY_CYCLE)]
+        if cfg.enable_q4_shared_ip:
+            rows += [
+                ("Q4b", r)
+                for r in run(
+                    Q4_SHARED_IP_CAPPED,
+                    min_size=cfg.min_ring_size,
+                    max_degree=cfg.max_degree_cap,
+                )
+            ]
+        return rows
 
-        if self._cfg.enable_q2_shared_card:
-            candidates.extend(self._q2_shared_card())
+    # ─── In-memory path (same rules) ──────────────────────────────────
 
-        if self._cfg.enable_q3_money_cycle:
-            candidates.extend(self._q3_money_cycle())
+    def _rows_in_memory(self, now_t: float) -> list[tuple[str, dict[str, Any]]]:
+        cfg = self.cfg
+        assert self.store is not None
+        full = self.store.full_view(float("-inf"), now_t)  # static queries see all history
+        by_attr: dict[tuple[str, str], list[str]] = defaultdict(list)
+        for lk in full.links:
+            by_attr[(lk.kind, lk.attr)].append(lk.user)
 
-        if self._cfg.enable_q4_shared_ip:
-            candidates.extend(self._q4_shared_ip())
+        rows: list[tuple[str, dict[str, Any]]] = []
+        for (kind, attr), users in sorted(by_attr.items()):
+            n = len(users)
+            row = {"shared": attr, "ring_size": n, "members": sorted(users)}
+            if kind == "device" and cfg.enable_q1_shared_device and n >= cfg.min_ring_size:
+                rows.append(("Q1", row))
+            elif kind == "card" and cfg.enable_q2_shared_card and n >= cfg.min_ring_size:
+                rows.append(("Q2", row))
+            elif (
+                kind == "ip"
+                and cfg.enable_q4_shared_ip
+                and cfg.min_ring_size <= n < cfg.max_degree_cap
+            ):
+                rows.append(("Q4b", row))
+        if cfg.enable_q3_money_cycle:
+            out: dict[str, set[str]] = defaultdict(set)
+            for t in full.txns:
+                out[t.sender].add(t.receiver)
+            for a in sorted(out):
+                for b in out[a]:
+                    if b <= a:
+                        continue
+                    for c in out.get(b, ()):
+                        if c > a and c != b and a in out.get(c, ()):
+                            rows.append(("Q3", {"a": a, "b": b, "c": c}))
+        return rows
 
-        logger.info(
-            "static_cypher_detect",
-            n_candidates=len(candidates),
-            queries_enabled={
-                "q1": self._cfg.enable_q1_shared_device,
-                "q2": self._cfg.enable_q2_shared_card,
-                "q3": self._cfg.enable_q3_money_cycle,
-                "q4": self._cfg.enable_q4_shared_ip,
-            },
+    # ─── Shared ───────────────────────────────────────────────────────
+
+    def _to_candidate(self, query: str, row: dict[str, Any], view: GraphView) -> RingCandidate:
+        if query == "Q3":
+            members = {row["a"], row["b"], row["c"]}
+            evidence = {"query": "Q3", "cycle": [row["a"], row["b"], row["c"], row["a"]]}
+            return self._candidate(RingType.MONEY_CYCLE, members, view, 1.0, evidence)
+        ring_type, key = {
+            "Q1": (RingType.SHARED_DEVICE, "device_id"),
+            "Q2": (RingType.SHARED_CARD, "card_id"),
+            "Q4b": (RingType.SHARED_IP, "ip"),
+        }[query]
+        evidence = {"query": query, "shared": row["shared"], "ring_size": row["ring_size"]}
+        if query == "Q4b":
+            evidence["degree_cap"] = self.cfg.max_degree_cap
+        return self._candidate(
+            ring_type, set(row["members"]), view, 1.0, evidence, {key: row["shared"]}
         )
-        return candidates
-
-    # ─── Q1: Shared device ring ───────────────────────────────────────
-
-    def _q1_shared_device(self) -> list[RingCandidate]:
-        """
-        Three or more users on the same device.
-
-        Original query:
-            MATCH (u:User)-[:USED_DEVICE]->(d:Device)
-            WITH d, collect(u.user_id) AS members, count(*) AS ring_size
-            WHERE ring_size >= 3
-            RETURN d.device_id AS shared_device, ring_size, members
-        """
-        cypher = """
-        MATCH (u:User)-[:USED_DEVICE]->(d:Device)
-        WITH d, collect(u.user_id) AS members, count(*) AS ring_size
-        WHERE ring_size >= $min_size
-        RETURN d.device_id AS shared_device, ring_size, members
-        ORDER BY ring_size DESC
-        """
-        rows = self._client.run_query(cypher, min_size=self._cfg.min_ring_size)
-        return [
-            RingCandidate(
-                ring_id=f"static_device_{row['shared_device']}",
-                detector=DetectorType.STATIC_CYPHER,
-                ring_type=RingType.SHARED_DEVICE,
-                members=set(row["members"]),
-                status=RingStatus.CANDIDATE,
-                score=1.0,
-                evidence={
-                    "query": "Q1",
-                    "shared_device": row["shared_device"],
-                    "ring_size": row["ring_size"],
-                },
-                shared_attributes={"device_id": row["shared_device"]},
-            )
-            for row in rows
-        ]
-
-    # ─── Q2: Shared card ring ─────────────────────────────────────────
-
-    def _q2_shared_card(self) -> list[RingCandidate]:
-        """
-        Three or more users on the same credit card.
-
-        Original query:
-            MATCH (u:User)-[:HAS_CARD]->(c:CreditCard)
-            WHERE COUNT { (:User)-[:HAS_CARD]->(c) } >= 3
-            RETURN ...
-        """
-        cypher = """
-        MATCH (u:User)-[:HAS_CARD]->(c:CreditCard)
-        WITH c, collect(u.user_id) AS members, count(*) AS ring_size
-        WHERE ring_size >= $min_size
-        RETURN c.card_id AS shared_card, ring_size, members
-        ORDER BY ring_size DESC
-        """
-        rows = self._client.run_query(cypher, min_size=self._cfg.min_ring_size)
-        return [
-            RingCandidate(
-                ring_id=f"static_card_{row['shared_card']}",
-                detector=DetectorType.STATIC_CYPHER,
-                ring_type=RingType.SHARED_CARD,
-                members=set(row["members"]),
-                status=RingStatus.CANDIDATE,
-                score=1.0,
-                evidence={
-                    "query": "Q2",
-                    "shared_card": row["shared_card"],
-                    "ring_size": row["ring_size"],
-                },
-                shared_attributes={"card_id": row["shared_card"]},
-            )
-            for row in rows
-        ]
-
-    # ─── Q3: Circular money flow ──────────────────────────────────────
-
-    def _q3_money_cycle(self) -> list[RingCandidate]:
-        """
-        A pays B, B pays C, C pays A (3-hop cycle).
-
-        Original query:
-            MATCH p = (a:User)-[:PERFORMED]->(:Transaction)-[:SENT_TO]->(b:User)
-                      -[:PERFORMED]->(:Transaction)-[:SENT_TO]->(c:User)
-                      -[:PERFORMED]->(:Transaction)-[:SENT_TO]->(a)
-            WHERE a.user_id < b.user_id AND a.user_id < c.user_id
-        """
-        cypher = """
-        MATCH (a:User)-[:PERFORMED]->(:Transaction)-[:SENT_TO]->(b:User)
-              -[:PERFORMED]->(:Transaction)-[:SENT_TO]->(c:User)
-              -[:PERFORMED]->(:Transaction)-[:SENT_TO]->(a)
-        WHERE a.user_id < b.user_id AND a.user_id < c.user_id
-        RETURN a.user_id AS a, b.user_id AS b, c.user_id AS c
-        """
-        rows = self._client.run_query(cypher)
-        return [
-            RingCandidate(
-                ring_id=f"static_cycle_{row['a']}_{row['b']}_{row['c']}",
-                detector=DetectorType.STATIC_CYPHER,
-                ring_type=RingType.MONEY_CYCLE,
-                members={row["a"], row["b"], row["c"]},
-                status=RingStatus.CANDIDATE,
-                score=1.0,
-                evidence={
-                    "query": "Q3",
-                    "cycle": [row["a"], row["b"], row["c"], row["a"]],
-                },
-            )
-            for row in rows
-        ]
-
-    # ─── Q4b: Shared IP with degree cap ──────────────────────────────
-
-    def _q4_shared_ip(self) -> list[RingCandidate]:
-        """
-        Three or more users on the same IP, with a degree cap to filter hubs.
-
-        Original query (Q4b):
-            MATCH (u:User)-[:LOGGED_IN_FROM]->(ip:IPAddress)
-            WHERE COUNT { (:User)-[:LOGGED_IN_FROM]->(ip) } >= 3
-              AND COUNT { (:User)-[:LOGGED_IN_FROM]->(ip) } < 10
-        """
-        cypher = """
-        MATCH (u:User)-[:LOGGED_IN_FROM]->(ip:IPAddress)
-        WITH ip, collect(u.user_id) AS members, count(*) AS ring_size
-        WHERE ring_size >= $min_size AND ring_size < $max_degree
-        RETURN ip.ip AS shared_ip, ring_size, members
-        ORDER BY ring_size DESC
-        """
-        rows = self._client.run_query(
-            cypher,
-            min_size=self._cfg.min_ring_size,
-            max_degree=self._cfg.max_degree_cap,
-        )
-        return [
-            RingCandidate(
-                ring_id=f"static_ip_{row['shared_ip']}",
-                detector=DetectorType.STATIC_CYPHER,
-                ring_type=RingType.SHARED_IP,
-                members=set(row["members"]),
-                status=RingStatus.CANDIDATE,
-                score=1.0,
-                evidence={
-                    "query": "Q4b",
-                    "shared_ip": row["shared_ip"],
-                    "ring_size": row["ring_size"],
-                    "degree_cap": self._cfg.max_degree_cap,
-                },
-                shared_attributes={"ip": row["shared_ip"]},
-            )
-            for row in rows
-        ]

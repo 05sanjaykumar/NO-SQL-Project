@@ -10,9 +10,18 @@ import uvicorn
 
 @click.group()
 @click.version_option(version="0.1.0")
-def main() -> None:
+@click.option("--log-level", default="INFO", help="Console log level (DEBUG shows ring updates)")
+def main(log_level: str) -> None:
     """FraudSim: Hub-Aware Incremental Fraud Ring Detection System."""
-    pass
+    import logging
+
+    import structlog
+
+    structlog.configure(
+        wrapper_class=structlog.make_filtering_bound_logger(
+            getattr(logging, log_level.upper(), logging.INFO)
+        )
+    )
 
 
 @main.command()
@@ -85,6 +94,51 @@ def simulate(scenario: str, seed: int, duration: float | None, out: str) -> None
         "run_dir",
     )
     click.echo(json.dumps({k: manifest[k] for k in keys}, indent=2))
+
+
+@main.command()
+@click.option("--scenario", default="baseline", help="Scenario configuration name")
+@click.option("--seed", default=42, help="RNG seed")
+@click.option("--backend", default="memory", type=click.Choice(["memory", "neo4j"]))
+@click.option("--batch-size", default=50, help="Events per micro-batch")
+@click.option("--k-hop", default=2, help="Dirty-set expansion radius (user hops)")
+@click.option("--full", is_flag=True, help="Ablation: full recomputation every batch")
+@click.option("--disable", multiple=True, help="Detector type to switch off (repeatable)")
+@click.option("--no-feedback", is_flag=True, help="Do not tell the adaptive attacker about flags")
+@click.option("--duration", default=None, type=float, help="Override duration (sim seconds)")
+@click.option("--out", default="runs/", help="Directory for run artefacts")
+def detect(
+    scenario: str,
+    seed: int,
+    backend: str,
+    batch_size: int,
+    k_hop: int,
+    full: bool,
+    disable: tuple[str, ...],
+    no_feedback: bool,
+    duration: float | None,
+    out: str,
+) -> None:
+    """Simulate a scenario and run incremental detection on it (closed loop)."""
+    import json
+    from pathlib import Path
+
+    from fraudsim.detectors.engine import EngineConfig
+    from fraudsim.detectors.runner import run_detection
+
+    result = run_detection(
+        scenario,
+        seed,
+        Path(out),
+        backend=backend,
+        engine_config=EngineConfig(batch_size=batch_size, k_hop=k_hop, incremental=not full),
+        detector_overrides={d: {"enabled": False} for d in disable},
+        attacker_feedback=not no_feedback,
+        duration_s=duration,
+    )
+    m = result.manifest
+    keys = ("run_id", "scenario", "seed", "backend", "config_hash", "events", "detection")
+    click.echo(json.dumps({k: m[k] for k in keys} | {"run_dir": m.get("run_dir")}, indent=2))
 
 
 @main.command()

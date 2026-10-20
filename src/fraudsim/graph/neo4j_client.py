@@ -11,7 +11,6 @@ from __future__ import annotations
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -36,6 +35,8 @@ CONSTRAINTS = [
 # (Only the legacy seed.py still writes that property, for the original course demo.)
 INDEXES = [
     "CREATE INDEX txn_ts IF NOT EXISTS FOR (t:Transaction) ON (t.ts)",
+    "CREATE INDEX txn_t IF NOT EXISTS FOR (t:Transaction) ON (t.t)",
+    "CREATE INDEX user_active IF NOT EXISTS FOR (u:User) ON (u.active)",
     "CREATE INDEX user_ts IF NOT EXISTS FOR (u:User) ON (u.created_at)",
 ]
 
@@ -217,29 +218,29 @@ class Neo4jClient:
 
     # ─── TTL Pruning ──────────────────────────────────────────────────
 
-    def prune_old_data(self, ttl_seconds: float) -> int:
+    def prune_before(self, cutoff_t: float) -> dict[str, int]:
         """
-        Delete nodes and relationships older than TTL.
+        TTL pruning in simulated time: drop attribute links and transactions
+        whose `t` (epoch seconds) is older than cutoff_t. Users are kept.
+        """
+        links = self.run_query(
+            "MATCH (:User)-[r:USED_DEVICE|HAS_CARD|LOGGED_IN_FROM]->() WHERE r.t < $cutoff "
+            "DELETE r RETURN count(r) AS n",
+            cutoff=cutoff_t,
+        )
+        txns = self.run_query(
+            "MATCH (t:Transaction) WHERE t.t < $cutoff DETACH DELETE t RETURN count(t) AS n",
+            cutoff=cutoff_t,
+        )
+        dropped = {"links": links[0]["n"], "transactions": txns[0]["n"]}
+        if dropped["links"] or dropped["transactions"]:
+            logger.info("ttl_pruned", cutoff_t=cutoff_t, **dropped)
+        return dropped
 
-        Returns the number of nodes deleted.
-        """
-        cutoff = datetime.now(UTC).isoformat()
-        # For now, prune transactions with old timestamps
-        cypher = """
-        MATCH (t:Transaction)
-        WHERE t.ts < datetime($cutoff) - duration({seconds: $ttl})
-        DETACH DELETE t
-        RETURN count(*) AS deleted
-        """
-        try:
-            rows = self.run_query(cypher, cutoff=cutoff, ttl=int(ttl_seconds))
-            deleted = rows[0]["deleted"] if rows else 0
-            if deleted > 0:
-                logger.info("ttl_pruned", deleted=deleted, ttl_seconds=ttl_seconds)
-            return deleted
-        except Exception as e:
-            logger.warning("ttl_prune_failed", error=str(e))
-            return 0
+    def prune_old_data(self, ttl_seconds: float, now_t: float) -> int:
+        """Delete links and transactions older than now_t - ttl_seconds. Returns rows dropped."""
+        dropped = self.prune_before(now_t - ttl_seconds)
+        return dropped["links"] + dropped["transactions"]
 
 
 def group_consecutive(events: list[Event]) -> list[tuple[EventType, list[dict[str, Any]]]]:
@@ -248,7 +249,12 @@ def group_consecutive(events: list[Event]) -> list[tuple[EventType, list[dict[st
     for event in events:
         if event.event_type in GROUND_TRUTH_ONLY_EVENTS:
             raise ValueError(f"refusing to write ground-truth event {event.event_type} to graph")
-        row = {**event.payload, "event_id": event.event_id, "ts": event.ts.isoformat()}
+        row = {
+            **event.payload,
+            "event_id": event.event_id,
+            "ts": event.ts.isoformat(),
+            "t": event.ts.timestamp(),
+        }
         if groups and groups[-1][0] == event.event_type:
             groups[-1][1].append(row)
         else:
@@ -262,33 +268,37 @@ _WRITE_QUERIES: dict[EventType, str] = {
     EventType.USER_JOIN: """
         UNWIND $rows AS r
         MERGE (u:User {user_id: r.user_id})
-        SET u.name = r.name, u.created_at = r.ts, u.event_id = r.event_id, u.active = true
+        SET u.name = r.name, u.created_at = r.ts, u.joined_t = r.t, u.event_id = r.event_id,
+            u.active = true
     """,
     EventType.DEVICE_LINK: """
         UNWIND $rows AS r
         MERGE (u:User {user_id: r.user_id})
+        ON CREATE SET u.active = true
         MERGE (d:Device {device_id: r.device_id})
         MERGE (u)-[rel:USED_DEVICE]->(d)
-        SET rel.ts = r.ts, rel.event_id = r.event_id
+        SET rel.ts = r.ts, rel.t = r.t, rel.event_id = r.event_id
     """,
     EventType.CARD_LINK: """
         UNWIND $rows AS r
         MERGE (u:User {user_id: r.user_id})
+        ON CREATE SET u.active = true
         MERGE (c:CreditCard {card_id: r.card_id})
         MERGE (u)-[rel:HAS_CARD]->(c)
-        SET rel.ts = r.ts, rel.event_id = r.event_id
+        SET rel.ts = r.ts, rel.t = r.t, rel.event_id = r.event_id
     """,
     EventType.IP_LINK: """
         UNWIND $rows AS r
         MERGE (u:User {user_id: r.user_id})
+        ON CREATE SET u.active = true
         MERGE (i:IPAddress {ip: r.ip})
         MERGE (u)-[rel:LOGGED_IN_FROM]->(i)
-        SET rel.ts = r.ts, rel.event_id = r.event_id
+        SET rel.ts = r.ts, rel.t = r.t, rel.event_id = r.event_id
     """,
     EventType.USER_LEAVE: """
         UNWIND $rows AS r
         MATCH (u:User {user_id: r.user_id})
-        SET u.left_at = r.ts, u.active = false
+        SET u.left_at = r.ts, u.left_t = r.t, u.active = false
     """,
     EventType.ATTRIBUTE_UNLINK: """
         UNWIND $rows AS r
@@ -306,6 +316,7 @@ _WRITE_QUERIES: dict[EventType, str] = {
             txn_id: r.txn_id,
             amount: r.amount,
             ts: r.ts,
+            t: r.t,
             event_id: r.event_id
         })-[:SENT_TO]->(x)
     """,

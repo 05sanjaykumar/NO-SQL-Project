@@ -1,8 +1,10 @@
 """
 Live simulation run behind the API: generator -> StreamPlayer -> bus -> consumer.
 
-The consumer forwards each event to WebSocket clients and keeps a short tail
-for the dashboard. Detection (Milestone 3) will subscribe to the same bus.
+The consumer forwards each event to WebSocket clients, keeps a short tail for
+the dashboard, and feeds micro-batches to the incremental DetectionEngine
+(in-memory store). Ring changes are broadcast as RING_UPDATE messages, and
+newly confirmed rings are reported back to the simulator's adaptive attacker.
 """
 
 from __future__ import annotations
@@ -14,6 +16,9 @@ from collections import deque
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from fraudsim.detectors.engine import DetectionEngine, EngineConfig, build_detectors
+from fraudsim.detectors.ensemble import RingUpdate, TrackedRing
+from fraudsim.graph.store import InMemoryGraphStore
 from fraudsim.simulator.event_generator import EventGenerator
 from fraudsim.simulator.player import StreamPlayer
 from fraudsim.simulator.scenario_loader import load_scenario
@@ -21,6 +26,8 @@ from fraudsim.stream.event_bus import AsyncQueueBus, EventBus
 from fraudsim.types import Event
 
 RECENT_EVENTS = 200
+# Process a partial batch when no event arrived for this long (wall clock).
+BATCH_IDLE_S = 0.25
 
 
 class LiveRun:
@@ -34,6 +41,7 @@ class LiveRun:
         speed: float = 1.0,
         broadcast: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
         bus: EventBus | None = None,
+        engine_config: EngineConfig | None = None,
     ) -> None:
         self.scenario = scenario
         self.seed = seed
@@ -46,6 +54,12 @@ class LiveRun:
         self.recent: deque[dict[str, Any]] = deque(maxlen=RECENT_EVENTS)
         self._player_task: asyncio.Task[Any] | None = None
         self._consumer_task: asyncio.Task[None] | None = None
+        store = InMemoryGraphStore()
+        self.engine = DetectionEngine(
+            store, build_detectors(store), config=engine_config or EngineConfig()
+        )
+        self._batch: list[Event] = []
+        self._flagged: set[str] = set()
 
     async def start(self) -> None:
         subscription = await self.bus.subscribe()
@@ -54,13 +68,54 @@ class LiveRun:
         self._player_task = asyncio.create_task(self.player.run())
 
     async def _consume(self, subscription: Any) -> None:
-        async for event in subscription:
+        iterator = subscription.__aiter__()
+        while True:
+            try:
+                event = await asyncio.wait_for(iterator.__anext__(), timeout=BATCH_IDLE_S)
+            except TimeoutError:
+                await self._detect()
+                continue
+            except StopAsyncIteration:
+                break
             await self._handle(event)
+            if len(self._batch) >= self.engine.cfg.batch_size:
+                await self._detect()
+        await self._detect()
+
+    async def _detect(self) -> None:
+        if not self._batch:
+            return
+        batch, self._batch = self._batch, []
+        report = self.engine.process(batch)
+        newly: set[str] = set()
+        for upd in report.updates:
+            if upd.change == "confirmed":
+                newly |= set(upd.members)
+            if self._broadcast is not None:
+                await self._broadcast({"type": "RING_UPDATE", "update": upd.to_dict()})
+        newly -= self._flagged
+        if newly:
+            self._flagged |= newly
+            self.generator.notify_flagged(newly)
+        if self._broadcast is not None:
+            await self._broadcast(
+                {
+                    "type": "BATCH",
+                    "batch": report.batch,
+                    "n_events": report.n_events,
+                    "region": report.region,
+                    "timings_ms": report.timings_ms,
+                }
+            )
+
+    def rings(self) -> list[dict[str, Any]]:
+        return [ring_payload(r) for r in self.engine.tracker.rings.values()]
 
     async def _handle(self, event: Event) -> None:
         self.events_consumed += 1
         data = event.to_dict()
         self.recent.append(data)
+        self._batch.append(event)
         if self._broadcast is not None:
             await self._broadcast({"type": "EVENT", "event": data})
 
@@ -101,3 +156,21 @@ class LiveRun:
             "events_emitted": self.events_consumed,
             "player": self.player.stats.to_dict(),
         }
+
+
+def ring_payload(ring: TrackedRing) -> dict[str, Any]:
+    """TrackedRing in the shape of api.schemas.RingDetailResponse."""
+    return {
+        "ring_id": ring.ring_id,
+        "status": ring.status.value,
+        "ring_type": ring.ring_type.value,
+        "score": ring.score,
+        "members": sorted(ring.members),
+        "features": {},  # Milestone 4
+        "explanation": {"detectors": sorted(ring.sources), "evidence": ring.evidence},
+        "created_at": ring.first_seen.isoformat(),
+        "updated_at": ring.last_seen.isoformat(),
+    }
+
+
+__all__ = ["LiveRun", "RingUpdate", "ring_payload"]

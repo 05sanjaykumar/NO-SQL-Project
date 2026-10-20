@@ -8,3 +8,6 @@ results/
 .ruff_cache/
 demo/
 models/*.joblib.tmp
+.claude/
+web/node_modules/
+web/dist/

@@ -43,6 +43,22 @@ class RateRequest(BaseModel):
     events_per_second: float = Field(ge=0.0)
 
 
+class InjectRingRequest(BaseModel):
+    ring_type: str = "shared_device"
+    evasion: str = "none"
+    size: int = Field(default=4, ge=2, le=12)
+
+
+class DetectorToggleRequest(BaseModel):
+    enabled: bool
+
+
+class ConfigRequest(BaseModel):
+    alert_threshold: float | None = None
+    edge_threshold: float | None = None
+    hub_weight_method: str | None = None
+
+
 class AnalystFeedbackRequest(BaseModel):
     action: str  # "confirm" or "dismiss"
     analyst_id: str = "analyst_1"

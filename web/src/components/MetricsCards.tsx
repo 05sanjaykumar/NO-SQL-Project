@@ -1,54 +1,58 @@
-import React from 'react';
-import { MetricsSummary } from '../types';
+import type { MetricsSummaryFull, Oracle } from '../types';
+import { fmt, pct } from '../api';
 
-interface MetricsCardsProps {
-  metrics: MetricsSummary;
+interface Props {
+  summary: MetricsSummaryFull | null;
+  oracle: Oracle | null | undefined;
+  showOracle: boolean;
+  graphInfo: { shown: number; total: number; links?: number; txns?: number };
 }
 
-export const MetricsCards: React.FC<MetricsCardsProps> = ({ metrics }) => {
+export function MetricsCards({ summary, oracle, showOracle, graphInfo }: Props) {
+  const s = summary;
+  const cards: [string, string, string?][] = [
+    ['rings detected', s ? `${s.rings_detected}/${s.true_rings}` : '–', 'good'],
+    ['rings missed', s ? String(s.rings_missed) : '–', s && s.rings_missed ? 'bad' : ''],
+    ['false rings', s ? String(s.false_positive_rings) : '–', s && s.false_positive_rings ? 'bad' : ''],
+    ['precision', pct(s?.ring.precision)],
+    ['recall', pct(s?.ring.recall)],
+    ['F1', fmt(s?.ring.f1)],
+    ['time to detect p50', s?.time_to_detect_s.p50 != null ? `${fmt(s.time_to_detect_s.p50, 1)} s` : '–'],
+    ['graph', `${graphInfo.shown}/${graphInfo.total} users`],
+  ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, padding: '12px 24px' }}>
-      <div className="glass-panel" style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Precision</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent-emerald)', marginTop: 4 }}>
-          {(metrics.precision * 100).toFixed(1)}%
-        </div>
+    <section className="panel">
+      <div className="panel-h">
+        <h3>Scoreboard</h3>
+        <span className="hint">vs simulator ground truth</span>
       </div>
-
-      <div className="glass-panel" style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Recall</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent-cyan)', marginTop: 4 }}>
-          {(metrics.recall * 100).toFixed(1)}%
-        </div>
+      <div className="cards">
+        {cards.map(([label, value, cls]) => (
+          <div key={label} className={`card ${cls ?? ''}`}>
+            <b>{value}</b>
+            <span>{label}</span>
+          </div>
+        ))}
       </div>
-
-      <div className="glass-panel" style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>F1-Score</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent-violet)', marginTop: 4 }}>
-          {(metrics.f1 * 100).toFixed(1)}%
-        </div>
-      </div>
-
-      <div className="glass-panel" style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Latency (p95)</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent-amber)', marginTop: 4 }}>
-          {metrics.latency_p95_ms.toFixed(1)} <span style={{ fontSize: 12, fontWeight: 400 }}>ms</span>
-        </div>
-      </div>
-
-      <div className="glass-panel" style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Throughput</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-main)', marginTop: 4 }}>
-          {metrics.throughput_events_per_sec.toFixed(0)} <span style={{ fontSize: 12, fontWeight: 400 }}>evt/s</span>
-        </div>
-      </div>
-
-      <div className="glass-panel glow-rose" style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Active Rings</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent-rose)', marginTop: 4 }}>
-          {metrics.active_rings}
-        </div>
-      </div>
-    </div>
+      {showOracle && oracle && (
+        <ul className="truth">
+          {oracle.true_rings.map((r) => (
+            <li key={r.true_ring}>
+              <span>
+                {r.true_ring} <i>{r.type}{r.evasion !== 'none' ? ` · ${r.evasion}` : ''}</i>
+              </span>
+              {r.detected ? (
+                <span className="tag ok">caught {fmt(r.time_to_detect_s, 1)} s after activation</span>
+              ) : (
+                <span className="tag miss">missed · {r.miss_reason?.replace(/_/g, ' ')}</span>
+              )}
+            </li>
+          ))}
+          {oracle.spawned_not_active.length > 0 && (
+            <li className="muted">forming (not active yet): {oracle.spawned_not_active.join(', ')}</li>
+          )}
+        </ul>
+      )}
+    </section>
   );
-};
+}

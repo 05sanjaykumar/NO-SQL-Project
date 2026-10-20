@@ -1,4 +1,4 @@
-.PHONY: help install dev lint test test-unit test-integration simulate simulate-all train-scorer demo-story experiment demo clean
+.PHONY: help install dev lint test test-unit test-integration simulate simulate-all train-scorer demo-story web web-dev api experiment demo clean
 
 PYTHON ?= python
 DOCKER ?= docker compose
@@ -104,15 +104,22 @@ tables: ## Generate LaTeX tables from experiment results
 
 # ─── Demo ─────────────────────────────────────────────────────────────
 
-demo: up ## Start services and launch the live dashboard
-	@echo "Waiting for Neo4j to be ready..."
-	@$(PYTHON) -c "import time; time.sleep(5)"
-	$(PYTHON) -m fraudsim.api.main &
+web: ## Build the React dashboard into web/dist (served by the API at /ui)
+	cd web && npm ci && npm run build
+
+web-dev: ## Dashboard dev server with hot reload on :5173 (run `make api` too)
+	cd web && npm run dev
+
+api: ## Run the FastAPI backend (dashboard at http://localhost:8000/ui/)
+	$(PYTHON) -m fraudsim.cli api --port 8000
+
+demo: web ## Build the dashboard and serve it with the API (open http://localhost:8000/ui/)
 	@echo ""
-	@echo "Dashboard:  http://localhost:5173"
+	@echo "Dashboard:  http://localhost:8000/ui/"
 	@echo "API docs:   http://localhost:8000/docs"
-	@echo "Neo4j:      http://localhost:7474"
+	@echo "Neo4j:      http://localhost:7474 (only needed for --backend neo4j runs)"
 	@echo ""
+	$(PYTHON) -m fraudsim.cli api --port 8000
 
 # ─── Cleanup ──────────────────────────────────────────────────────────
 

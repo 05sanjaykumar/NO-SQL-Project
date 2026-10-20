@@ -387,6 +387,38 @@ class EventGenerator:
         self._spawn_ring(spec)
         self.schedule(rng.expovariate(rr.rate_per_min / 60.0), self._random_ring)
 
+    def inject_ring(self, ring_type: str, evasion: str = "none", size: int = 4) -> str:
+        """Spawn a ring right now (dashboard "inject" control). Logged in control_log."""
+        from fraudsim.types import RingType
+
+        rtype = RingType(ring_type)
+        mode = EvasionMode(evasion)
+        size = max(2, int(size))
+        length = min(max(3, size), 6) if rtype == RingType.MONEY_CYCLE else None
+        ring_id = f"inj_{next(self._random_ring_counter):04d}"
+        spec = RingSpec(
+            ring_id=ring_id,
+            ring_type=rtype,
+            size=max(size, length or 0),
+            spawn_time_s=self._now,
+            evasion=mode,
+            length=length,
+            grow_interval_s=1.5,
+            action_interval_s=2.0,
+        )
+        self.control_log.append(
+            {
+                "t_s": self._now,
+                "action": "inject_ring",
+                "ring_id": ring_id,
+                "ring_type": rtype.value,
+                "evasion": mode.value,
+                "size": spec.size,
+            }
+        )
+        self.schedule(0.0, self._spawn_ring, spec)
+        return ring_id
+
     def on_ring_dissolved(self, agent: RingAgent) -> None:
         """Hook called by a ring agent when it dissolves."""
 

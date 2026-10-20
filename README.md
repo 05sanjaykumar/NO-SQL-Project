@@ -23,7 +23,32 @@ It is now a streaming research system with these parts:
 `master_prompt.md` is the specification. Milestone status is
 [at the bottom](#milestone-status).
 
-## Demo
+## Live dashboard
+
+```bash
+pip install -e ".[dev]"
+make demo              # builds web/ (Node 18+) and serves it with the API -> http://localhost:8000/ui/
+```
+
+The dashboard runs any scenario live: the transaction graph grows as events
+arrive, rings form as red circles of transfers, and alerts pop into a queue
+ranked by calibrated risk. Click a ring to see:
+- why it was flagged;
+- its feature contributions, counterfactual, evidence subgraph and timeline;
+- confirm/dismiss buttons, which adapt the threshold and are audited.
+
+From the controls you can inject any ring type or evasion on demand, switch
+detectors, and retune the alert threshold and hub weighting live. The
+*Oracle view* overlays the answer key: correct flags, false alarms and missed
+rings. Details are in [`docs/dashboard.md`](docs/dashboard.md).
+
+| Live run (demo_story, seed 7) | Oracle view |
+|---|---|
+| ![Dashboard](docs/images/dashboard_live.jpg) | ![Oracle view](docs/images/dashboard_oracle.jpg) |
+
+![Ring drawer](docs/images/dashboard_oracle_drawer.jpg)
+
+## Offline demo (story replay)
 
 ```bash
 pip install -e ".[dev]"
@@ -98,11 +123,13 @@ flowchart LR
 | `src/fraudsim/logging/` | Run logs, audit trail, replay |
 | `src/fraudsim/api/` | FastAPI app, live run, WebSocket |
 | `src/fraudsim/demo/` | `demo-story` page builder |
+| `web/` | Live dashboard (React, Vite, TypeScript, Cytoscape.js, Recharts) |
 | `configs/scenarios/` | baseline, high_noise, hub_heavy, adversarial, scale_sweep, drift, demo_story |
 
 Design notes are in [`docs/simulator.md`](docs/simulator.md),
 [`docs/detection.md`](docs/detection.md), [`docs/scoring.md`](docs/scoring.md),
-[`docs/metrics.md`](docs/metrics.md) and [`docs/logging.md`](docs/logging.md).
+[`docs/metrics.md`](docs/metrics.md), [`docs/logging.md`](docs/logging.md) and
+[`docs/dashboard.md`](docs/dashboard.md).
 
 ## Quick start
 
@@ -123,7 +150,7 @@ fraudsim audit-verify runs/<run_id>                          # check the audit h
 fraudsim compare-latency --scenario scale_sweep --seed 42    # incremental vs full recompute
 fraudsim train-scorer --model logistic_regression            # (re)train the risk model
 fraudsim run --scenario baseline --speed 10                  # live JSON event stream
-fraudsim api                                                  # FastAPI on :8000 (docs at /docs)
+fraudsim api                                                  # FastAPI on :8000, dashboard at /ui (after `make web`)
 ```
 
 The commands above assume `pip install -e .`. Without installing, use
@@ -145,8 +172,9 @@ pytest -m integration              # needs `docker compose up -d neo4j redis`
 make lint
 ```
 
-The latest reports are in `docs/reports/`; Milestone 6 has 158 passing tests,
-including the Neo4j/GDS and Redis integration tests.
+The latest reports are in `docs/reports/`; Milestone 7 has 159 passing tests,
+including the Neo4j/GDS and Redis integration tests, and the dashboard builds
+under strict TypeScript (`make web`).
 
 ## Milestone status
 
@@ -158,14 +186,13 @@ including the Neo4j/GDS and Redis integration tests.
 | M4 Scoring and explainability (+ `demo-story`) | done |
 | M5 Metrics | done |
 | M6 Logging, audit and replay | done |
-| M7 Live React dashboard | next |
-| M8 Experiment harness and paper artefacts | planned. `docs/paper` tables are placeholders until real runs fill them |
+| M7 Live React dashboard | done |
+| M8 Experiment harness and paper artefacts | next. `docs/paper` tables are placeholders until real runs fill them |
 | M9 Quality bar (CI, README, reproduction guide) | planned |
 
 Known open items:
 - `src/fraudsim/experiments/latex_export.py` and `plotting.py` still embed
   hard-coded numbers. They will be replaced with run-derived values in M8.
-- `web/` holds the M1 dashboard skeleton, which is rebuilt in M7.
 
 ---
 

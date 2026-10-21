@@ -232,15 +232,23 @@ count against recall; both directions affect every method equally.
 
 \textbf{Public data.} The public datasets we could obtain carry no device,
 card or IP links, so they cannot test hub-aware weighting at all; on them only
-the transaction detectors run (Section~\ref{sec:public}). Elliptic and AMLSim
-were \TBD{evaluated / not evaluated, depending on downloads}.
+the transaction detectors run (Section~\ref{sec:public}). Only AMLworld has
+group labels, and we could replay only a four-day slice with a one-hour window.
+Elliptic and the AMLSim samples turned out to be outside what the transaction
+rules can detect, for structural reasons we describe. A real-world test of
+hub-aware weighting would need data with shared-attribute links, which we did
+not find in public form.
 
 \textbf{Tuning.} Thresholds were selected on validation seeds of the same
 generator; the test seeds are independent draws but from the same
 distribution.
 
-\textbf{Scale.} \TBD{state the largest graph measured (\ScaleMaxUsers{} users)
-and that $10^6$ was not feasible on the test machine, if so}.
+\textbf{Scale.} The largest graph we measured has \ScaleMaxUsers{} users. A
+million users was not feasible on the 7.7\,GB test machine: at 100{,}000 users
+less than 0.3\,GB of memory was free and one full recomputation already took
+over 20\,s per batch. In the scale scenario, attribute counts grow with the
+number of users while hub sizes stay fixed; graphs whose hubs grow with the
+population would give larger dirty regions.
 
 \textbf{Latency.} Latencies are measured on the in-memory store on a laptop;
 Neo4j adds query and transport cost that we did not include in these numbers.
@@ -250,7 +258,17 @@ different question (per-node labels rather than groups) and need labelled
 training graphs.
 
 \section{Conclusion}
-\TBD{Written from the final results.}
+Replacing the degree cap with a continuous hub-aware weight lets a streaming
+detector reach fraud rings that share busy infrastructure, which no cap reaches;
+on its own the weighting is not precise, and a calibrated scorer over ring
+features supplies most of the precision. Restricting detection to the region a
+micro-batch touches gave the same rings as full recomputation in every
+accuracy run, and kept per-batch latency flat as the graph grew to
+\ScaleMaxUsers{} users while full recomputation grew past 20\,s. Rings that
+rotate identities or act slowly evade all methods we tested, and all of our
+positive results are on synthetic data. The next steps are data with real
+shared-attribute links, longer windows for slow rings, and a Neo4j-backed
+measurement of the same latency curve.
 
 \section*{Reproducibility}
 Code, scenario files, trained models and the scripts that produce every table

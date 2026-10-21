@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import subprocess
 import sys
+import tarfile
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -71,6 +72,15 @@ def fetch_amlsim() -> None:
         ["git", "-C", str(out), "rev-parse", "HEAD"], capture_output=True, text=True
     )
     print(f"AMLSim at commit {rev.stdout.strip()}")
+    samples = RAW / "amlsim" / "samples"
+    samples.mkdir(parents=True, exist_ok=True)
+    for tgz in sorted((out / "sample").glob("*.tgz")):
+        report(tgz)
+        with tarfile.open(tgz) as t:
+            for m in t.getmembers():
+                # Only plain files inside the sample's own folder.
+                if m.isfile() and ".." not in m.name and not m.name.startswith("/"):
+                    t.extract(m, samples)
 
 
 def verify() -> None:

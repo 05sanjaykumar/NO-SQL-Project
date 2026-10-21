@@ -164,7 +164,8 @@ def generate_ablation_table(output_dir: Path, results_dir: Path = Path("results"
         m = r["method"]
         if m in tests.index:
             t = tests.loc[m]
-            delta = f"{-t['mean_diff']:+.2f}"
+            d = -t["mean_diff"]
+            delta = "0.00" if abs(d) < 0.005 else f"{d:+.2f}"
             dz = _num(t["cohens_dz"], 2)
             p = _p(t["wilcoxon_p"])
         else:
@@ -237,6 +238,96 @@ Users & Region & ms & Region & ms & Speed-up \\
 """
     )
     return _write(output_dir, "tab3_scale.tex", body)
+
+
+def _slice(value: object) -> str:
+    """'2022-09-01T00:00:00 .. 2022-09-05T00:00:00' -> '2022-09-01 to 09-05 (excl.)'; missing -> 'all'."""
+    if not isinstance(value, str) or value in ("", "all"):
+        return "all"
+    lo, _, hi = value.partition(" .. ")
+    return f"{lo[:10]} to {hi[5:10]} (excl.)" if hi and hi != "end" else f"from {lo[:10]}"
+
+
+def generate_public_table(output_dir: Path, results_dir: Path = Path("results")) -> Path | None:
+    """Table 4: public datasets (latest run per dataset), with attempt recall by typology."""
+    got = _results(results_dir, "public")
+    if got is None:
+        return None
+    df, header = got
+    lines = []
+    for _, r in df.groupby("dataset", sort=False).tail(1).iterrows():
+        by_type = (
+            json.loads(r["group_recall_by_type"])
+            if isinstance(r.get("group_recall_by_type"), str)
+            else {}
+        )
+        types = ", ".join(f"{_esc(k)} {v:.2f}" for k, v in by_type.items()) or "--"
+        gr = r.get("group_recall")
+        lines.append(
+            f"{_esc(r['dataset'])} & {_slice(r.get('slice'))} & {int(r['rows']):,} & {int(r['groups'])}"
+            f" & {_num(r.get('account_precision'), 2)} & {_num(r.get('account_recall'), 2)}"
+            f" & {_num(gr, 2) if gr == gr else '--'} \\\\"
+            + (
+                f"\n\\multicolumn{{7}}{{l}}{{\\quad attempt recall by typology: {types}}} \\\\"
+                if by_type
+                else ""
+            )
+        )
+    body = (
+        header
+        + rf"""\begin{{table*}}[t]
+\centering
+\caption{{Public data, transaction detectors only (no device/card/IP links exist). Account precision/recall:
+accounts in confirmed groups vs.\ accounts in laundering transactions. Attempt recall: share of laundering
+attempts that lie entirely in the slice and are at least half covered by one flagged group.}}
+\label{{tab:public}}
+\begin{{tabular}}{{lllrrrr}}
+\toprule
+Dataset & Slice & Rows & Attempts & Acc.\ precision & Acc.\ recall & Attempt recall \\
+\midrule
+{chr(10).join(lines)}
+\bottomrule
+\end{{tabular}}
+\end{{table*}}
+"""
+    )
+    return _write(output_dir, "tab4_public.tex", body)
+
+
+def _public_numbers(results_dir: Path) -> list[str]:
+    got = _results(results_dir, "public")
+    if not got:
+        return []
+    df, header = got
+    out = [header]
+    for _, r in df.groupby("dataset", sort=False).tail(1).iterrows():
+        tag = {
+            "amlworld": "Aml",
+            "elliptic": "Ell",
+            "paysim": "Pay",
+            "amlsim_20K_cycle200": "SimCycle",
+            "amlsim_20K_fanin200": "SimFanin",
+            "amlsim_20K_fanin200cycle200": "SimBoth",
+        }.get(r["dataset"])
+        if tag is None:
+            continue
+        out.append(_macro(f"Pub{tag}Rows", f"{int(r['rows']):,}"))
+        out.append(_macro(f"Pub{tag}Events", f"{int(r['events']):,}"))
+        out.append(_macro(f"Pub{tag}Accounts", f"{int(r['accounts']):,}"))
+        out.append(_macro(f"Pub{tag}Groups", str(int(r["groups"]))))
+        out.append(_macro(f"Pub{tag}Illicit", f"{int(r['illicit_accounts']):,}"))
+        out.append(_macro(f"Pub{tag}Flagged", f"{int(r['accounts_flagged']):,}"))
+        out.append(_macro(f"Pub{tag}GroupsFlagged", str(int(r["groups_flagged"]))))
+        out.append(_macro(f"Pub{tag}Window", f"{float(r['window_s']) / 3600:g}"))
+        out.append(_macro(f"Pub{tag}Wall", f"{float(r['wall_s']) / 60:.0f}"))
+        for col, mt in (
+            ("account_precision", "AccP"),
+            ("account_recall", "AccR"),
+            ("group_recall", "GroupR"),
+        ):
+            v = r.get(col)
+            out.append(_macro(f"Pub{tag}{mt}", "--" if v is None or v != v else f"{float(v):.2f}"))
+    return out
 
 
 def _macro(name: str, value: str) -> str:
@@ -449,6 +540,7 @@ def generate_numbers(output_dir: Path, results_dir: Path = Path("results")) -> P
     out += _hub_size_numbers(results_dir, f2)
     out += _sweep_numbers(results_dir, f2)
     out += _adaptivity_numbers(results_dir)
+    out += _public_numbers(results_dir)
     tuned = Path("configs/tuned.json")
     if tuned.exists():
         t = json.loads(tuned.read_text(encoding="utf-8"))
@@ -466,6 +558,7 @@ TABLES = (
     generate_scenario_table,
     generate_ablation_table,
     generate_scale_table,
+    generate_public_table,
     generate_numbers,
 )
 

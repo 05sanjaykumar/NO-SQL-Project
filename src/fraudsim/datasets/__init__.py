@@ -27,4 +27,8 @@ def load_dataset(name: str, path: str, **kw) -> PublicDataset:  # type: ignore[n
         from fraudsim.datasets.paysim import load_paysim
 
         return load_paysim(path, **kw)
-    raise ValueError(f"unknown dataset {name!r} (amlworld | elliptic | paysim)")
+    if name == "amlsim":
+        from fraudsim.datasets.amlsim import load_amlsim
+
+        return load_amlsim(path, **kw)
+    raise ValueError(f"unknown dataset {name!r} (amlworld | elliptic | paysim | amlsim)")

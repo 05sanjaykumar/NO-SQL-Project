@@ -7,6 +7,7 @@ results/*
 !results/e[0-9]*_*/
 !results/tuning/
 !results/public/
+!results/public/runs/
 .pytest_cache/
 .ruff_cache/
 demo/

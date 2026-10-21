@@ -108,3 +108,21 @@ def test_account_evaluation_counts(tmp_path: Path):
     assert out["account_precision"] == 2 / 3
     assert out["account_recall"] == 2 / 3
     assert out["group_recall"] == 1.0
+
+
+def test_amlsim_sample_loader(tmp_path: Path):
+    d = tmp_path / "20K_test"
+    d.mkdir()
+    (d / "nodes.csv").write_text(
+        "nodeid,isFraud,init_balance,fraudStep\n0,0,10,-1\n1,1,10,3\n2,1,10,3\n", encoding="utf-8"
+    )
+    (d / "transactions.csv").write_text(
+        "sourceNodeId,targetNodeId,value,time\n0,1,5.0,2\n1,2,4.5,1\n2,1,4.0,1\n", encoding="utf-8"
+    )
+    ds = load_dataset("amlsim", str(d), step_seconds=60.0)
+    assert ds.name == "amlsim_20K_test"
+    assert ds.illicit_accounts == {"a1", "a2"}
+    txns = [e for e in ds.events if e.event_type == EventType.TRANSACTION]
+    # Sorted by step; two transfers in step 1 are spread over its 60 s.
+    assert [t.payload["sender"] for t in txns] == ["a1", "a2", "a0"]
+    assert txns[0].ts < txns[1].ts < txns[2].ts

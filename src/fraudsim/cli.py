@@ -317,7 +317,9 @@ def experiment(suite: str | None, scenario: str, seeds: int, output_dir: str) ->
 
 
 @main.command()
-@click.option("--dataset", type=click.Choice(["amlworld", "elliptic", "paysim"]), required=True)
+@click.option(
+    "--dataset", type=click.Choice(["amlworld", "elliptic", "paysim", "amlsim"]), required=True
+)
 @click.option("--path", default=None, help="Dataset folder (default data/raw/<dataset>)")
 @click.option("--max-rows", default=None, type=int, help="Read only the first N rows")
 @click.option("--window-s", default=900.0, help="Rolling transaction window of the views")
@@ -334,22 +336,32 @@ def public(
     output_dir: str,
 ) -> None:
     """Replay a public dataset through the transaction detectors and score it."""
+    import time
     from pathlib import Path
 
-    from fraudsim.datasets import load_dataset, run_public
-    from fraudsim.experiments.harness import _append
+    import pandas as pd
 
-    kw = {"max_rows": max_rows} if dataset != "elliptic" else {}
+    from fraudsim.datasets import load_dataset, run_public
+
+    kw = {"max_rows": max_rows} if dataset in ("amlworld", "paysim") else {}
     if dataset == "amlworld":
         kw |= {"start_day": start_day, "days": days}
     ds = load_dataset(dataset, path or f"data/raw/{dataset}", **kw)
-    row = run_public(ds, window_s=window_s)
+    row = run_public(ds, window_s=window_s, log=lambda m: click.echo(m, err=True))
     row = {k: (json.dumps(v) if isinstance(v, (dict, list)) else v) for k, v in row.items()}
     row["window_s"] = window_s
     out = Path(output_dir) / "public"
-    out.mkdir(parents=True, exist_ok=True)
-    _append(out / "results.csv", row)
+    (out / "runs").mkdir(parents=True, exist_ok=True)
     click.echo(json.dumps(row, indent=2))
+    # Each run is kept as JSON first; the CSV is the union of all runs' columns, since
+    # datasets report different fields (attempt recall exists only for AMLworld).
+    stamp = time.strftime("%Y%m%dT%H%M%S")
+    (out / "runs" / f"{row['dataset']}_{stamp}.json").write_text(
+        json.dumps(row, indent=2), encoding="utf-8"
+    )
+    csv_path = out / "results.csv"
+    table = pd.read_csv(csv_path) if csv_path.exists() else pd.DataFrame()
+    pd.concat([table, pd.DataFrame([row])], ignore_index=True).to_csv(csv_path, index=False)
 
 
 @main.command()

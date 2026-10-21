@@ -185,6 +185,8 @@ def run_public(
     detector_overrides: dict[str, dict[str, Any]] | None = None,
     batch_size: int = 200,
     window_s: float = 900.0,
+    log: Any = None,
+    progress_every: int = 500,
 ) -> dict[str, Any]:
     """Replay the dataset through the engine (in-memory store) and score it."""
     from fraudsim.detectors.engine import DetectionEngine, EngineConfig, build_detectors
@@ -207,7 +209,13 @@ def run_public(
         config=EngineConfig(batch_size=batch_size, window_s=window_s, ttl_s=window_s),
     )
     t0 = time.perf_counter()
-    engine.run(ds.events)
+    for i, batch in enumerate(engine.batches(ds.events), 1):
+        engine.process(batch)
+        if log is not None and i % progress_every == 0:
+            log(
+                f"[public] {ds.name} batch {i} ({i * batch_size:,} events) "
+                f"sim t={batch[-1].ts.isoformat()} {time.perf_counter() - t0:.0f}s"
+            )
     wall = time.perf_counter() - t0
     # Every ring that was ever confirmed (hysteresis passed), with its last membership.
     groups = [set(r.members) for r in engine.tracker.rings.values() if r.confirmed_at is not None]

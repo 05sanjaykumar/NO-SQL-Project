@@ -119,8 +119,12 @@ Every baseline is below the proposed method (paired Wilcoxon p < 0.001).
   hub-aware detector (-> 0.36) costs most. Incremental and full recomputation
   flag identical rings.
 - **Limits**: rings that rotate identities or act low-and-slow evade every
-  method tested. Everything here is synthetic; see the paper's threats to
-  validity and [docs/datasets.md](docs/datasets.md) for the public data.
+  method tested. The positive results are synthetic.
+- **Public data** (transaction rules only, no shared attributes in any public set):
+  on a 4-day AMLworld slice the rules match none of the 55 laundering attempts
+  inside it (account precision 0.03). Elliptic (acyclic, no amounts) and the
+  AMLSim samples (cycles not time-ordered) give no flags. Details:
+  [docs/datasets.md](docs/datasets.md).
 
 Paper: [`docs/paper/paper.pdf`](docs/paper/paper.pdf) (IEEE conference
 template; tables and the numbers in the text are generated, see `make tables`).
@@ -234,7 +238,7 @@ under strict TypeScript (`make web`).
 
 Known open items:
 - Paper: citations marked `[cite: ...]` still need sources; bibliography entries must be checked before submission.
-- Public datasets: Elliptic and AMLSim fetches wait on the owner's go-ahead (`scripts/fetch_datasets.py`).
+- Public data has no shared-attribute links, so hub-aware weighting is untested on real data (see [docs/datasets.md](docs/datasets.md)).
 
 ---
 

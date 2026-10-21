@@ -1,6 +1,37 @@
-% Filled from results/public/results.csv (fraudsim public ...).
-\TBD{AMLworld HI-Small: slice, rows, attempts in slice, account-level
-precision/recall, attempt recall by typology. Elliptic and AMLSim: evaluated
-or not, per what could be downloaded.} The public datasets have no device,
-card or IP links, so only the transaction detectors (temporal cycle and
-smurfing) run on them and these results do not bear on hub-aware weighting.
+% Numbers from results/public/results.csv (fraudsim public ...), via numbers.tex.
+None of the public datasets we could obtain has device, card or IP links, so on
+all of them only the transaction detectors (temporal cycle, smurfing) run, and
+the results below say nothing about hub-aware weighting
+(Table~\ref{tab:public}; sources and hashes in \texttt{docs/datasets.md}).
+
+\textbf{AMLworld} \cite{altman2023amlworld} (HI-Small) is the only one with
+group labels: 370 laundering attempts of eight typologies. We replayed the first
+four days (\PubAmlRows{} transactions, \PubAmlAccounts{} accounts) with a
+\PubAmlWindow{}\,h window and used the \PubAmlGroups{} attempts that lie
+entirely in that slice as ring ground truth. The detectors confirmed
+\PubAmlGroupsFlagged{} groups; attempt recall is \PubAmlGroupR{} and
+account-level precision and recall are \PubAmlAccP{} and \PubAmlAccR{}.
+In other words, the transaction rules matched none of the attempts, and the
+groups they did confirm were almost all benign. Attempts span a median of
+75\,h, far longer than the window. A one-day window was too slow on our test
+machine (throughput fell steadily as the window filled), so attempts whose
+transfers are hours apart cannot be matched; and AMLworld's typologies (fan-in,
+scatter-gather, bipartite, stacks) are mostly not the relayed cycles and
+structuring our two transaction rules look for. The result is a negative one
+for short-window transaction rules on this data, not a comparison with
+published AMLworld models, which classify individual transactions.
+
+\textbf{Elliptic} \cite{weber2019elliptic} links each Bitcoin transaction to
+the later transactions spending its outputs, so its graph has no cycles, and
+amounts are not published. Neither transaction rule can fire: no account was
+flagged (\PubEllFlagged{} of \PubEllAccounts{}). We report it as not applicable
+to group detection rather than as a score.
+
+\textbf{AMLSim} samples (IBM, 20{,}000 accounts, 200 planted cycles and/or
+fan-ins) were not flagged either (\PubSimCycleFlagged{}, \PubSimFaninFlagged{}
+and \PubSimBothFlagged{} accounts). The planted cycles are not time-ordered:
+none of the 21 we could reconstruct from equal hop amounts has its hops in time
+order (one cycle's five hops fall at steps 28, 113, 84, 59 and 78), whereas our
+cycle detector, by design, looks for money relayed around a loop.
+
+\input{tables/tab4_public.tex}

@@ -1,0 +1,6 @@
+dataset,events,accounts,illicit_accounts,groups,file,sha256,rows,slice,step_seconds,accounts_flagged,illicit_flagged,account_precision,account_recall,account_f1,groups_flagged,batches,detect_ms_p50,wall_s,window_s,files,patterns_file,group_recall,group_recall_by_type
+amlsim_20K_cycle200,137771,19980,945,0,20K_cycle200/transactions.csv,fda09438a776a21d,117805,all,3600.0,0,0,,0.0,,0,689,3.951,25.1,10800.0,,,,
+amlsim_20K_fanin200,138216,19980,954,0,20K_fanin200/transactions.csv,e56ed0df72cdf4f4,118250,all,3600.0,0,0,,0.0,,0,692,3.411,22.07,10800.0,,,,
+amlsim_20K_fanin200cycle200,140523,19980,1804,0,20K_fanin200cycle200/transactions.csv,5f650f8b4ce7cc32,120558,all,3600.0,0,0,,0.0,,0,703,3.43,24.62,10800.0,,,,
+elliptic,438124,203769,4545,0,,a35053ba68a98e43,234355,,,0,0,,0.0,,0,2191,8.675,87.93,1800.0,"[""elliptic_txs_features.csv"", ""elliptic_txs_classes.csv"", ""elliptic_txs_edgelist.csv""]",,,
+amlworld,2152331,399735,2215,55,HI-Small_Trans.csv,b19d39f515523373,2284182,2022-09-01T00:00:00 .. 2022-09-05T00:00:00,,828,26,0.03140096618357488,0.011738148984198645,0.017088399605652317,303,10762,10.82,2052.98,3600.0,,HI-Small_Patterns.txt,0.0,"{""bipartite"": 0.0, ""cycle"": 0.0, ""fan-in"": 0.0, ""fan-out"": 0.0, ""gather-scatter"": 0.0, ""random"": 0.0, ""scatter-gather"": 0.0, ""stack"": 0.0}"

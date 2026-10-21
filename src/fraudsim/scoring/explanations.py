@@ -182,7 +182,14 @@ def counterfactuals(
                     "hub: their transfers to each other alone carry enough weight."
                 )
             else:
-                n_needed = math.ceil(math.exp(1.0 / room) - 1.0)
+                exponent = 1.0 / room
+                if exponent > 30:  # more accounts than any real attribute could have
+                    out.append(
+                        f"Only an attribute shared by far more accounts than exist would stop "
+                        f"the hub-aware rule linking these members (shared now by {top['degree']})."
+                    )
+                    return out
+                n_needed = math.ceil(math.exp(exponent) - 1.0)
                 out.append(
                     f"The hub-aware rule would stop linking these members if {top['id']} were "
                     f"shared by more than {n_needed} accounts (now {top['degree']})."

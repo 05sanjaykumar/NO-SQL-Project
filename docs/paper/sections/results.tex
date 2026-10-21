@@ -1,0 +1,174 @@
+\section{Results}
+\label{sec:results}
+
+\subsection{RQ1: accuracy against baselines}
+\input{tables/tab1_baselines.tex}
+\input{tables/tab1b_scenarios.tex}
+
+Table~\ref{tab:baselines} pools \ERuns{} runs (\EScenarios{} scenarios
+$\times$ \ESeeds{} test seeds $\times$ six methods). The proposed method reaches
+ring F1 \EPropF{} ($\pm$\EPropFCI{}), against \ECapTenF{} for the static rules
+with a degree cap of 10, \ECapHundredF{} with a cap of 100, \ELouvainF{} for
+Louvain and \EPlainCCF{} for connected components; each difference is
+significant on the paired streams ($p<0.001$). The static rules reach recall
+\ECapTenR{} but precision only \ECapTenP{}: the shared-attribute rules and the
+3-cycle rule fire on many benign groups, and two-hit confirmation does not
+remove them. Connected components never produce a group within the ring size
+limits, because benign hubs join almost all users into one component; Louvain
+splits that component, but its communities rarely coincide with a ring. The
+thresholds selected on validation seeds improve on the a-priori ones (F1
+\EPropF{} vs.\ \EPropDefaultF{}, $p=0.03$).
+
+Per scenario (Table~\ref{tab:scenarios}), the gap to the static rules is
+largest on \texttt{drift} and \texttt{high\_noise}, where many benign groups
+satisfy the rules and their precision collapses, and smallest on the clean
+\texttt{baseline} scenario and on \texttt{adversarial}, which is the hardest
+scenario for every method.
+
+\textbf{Degree cap vs.\ hub weighting.} Fig.~\ref{fig:frontier} isolates the
+mechanism this paper replaces. Only shared-attribute and mixed rings count as
+ground truth here (flags that match only other ring types are ignored), the
+static rules run without the cycle rule, and the hub-aware detector runs alone.
+Without the scorer, no degree cap reaches a recall above \FrCapMaxR{}: rings
+that share a busy attribute are invisible to every cap. Hub weighting reaches
+recall \FrHubMaxR{}, but on its own at precision \FrHubPAtMaxR{}. With the
+calibrated scorer on top, hub weighting reaches recall \FrHubSMaxR{} (precision
+\FrHubSPAtMaxR{}) and its best F1 is \FrHubSBestF{} (alert threshold
+\FrHubSBestFAt{}); the cap with the scorer stays below recall \FrCapSMaxR{} and
+its best F1 is \FrCapSBestF{}. At low recall the cap with the scorer is the
+more precise of the two (\FrCapSBestFP{} at recall \FrCapSBestFR{}). Hub
+weighting therefore does not dominate the cap everywhere; it extends the
+frontier to recall levels the cap cannot reach, and the scorer is what makes
+those levels usable.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{\figpath/fig1_pr_frontier.pdf}
+\caption{Precision and recall on shared-attribute rings (micro-averaged over
+4 scenarios $\times$ 5 test seeds). Solid: detector alone, swept over the
+degree cap or the edge threshold $\theta_e$. Dashed: with the calibrated scorer,
+swept over the alert threshold $\theta_a$ (cap 10; $\theta_e=\TunedEdge$).}
+\label{fig:frontier}
+\end{figure}
+
+\subsection{RQ2: latency and scale}
+\input{tables/tab3_scale.tex}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{\figpath/fig2_latency_scaling.pdf}
+\caption{Median per-batch detection latency as the graph grows (mean over 3
+seeds; bars: per-seed minimum and maximum), incremental (dirty region) vs.\ full recomputation of the same
+detectors, in-memory store.}
+\label{fig:scale}
+\end{figure}
+
+Table~\ref{tab:scale} and Fig.~\ref{fig:scale} grow the user population of the
+\texttt{scale\_sweep} scenario at a fixed event rate (100 events/s) and compare
+incremental detection with recomputing the same detectors on the whole graph
+for every batch. Full recomputation grows at least linearly with the graph
+(faster between 50{,}000 and 100{,}000 users, where the 7.7\,GB test machine was
+short of memory; we did not separate the two effects). The incremental region
+stays between a few hundred and two thousand users, because the fan-out limits
+stop the expansion at hubs; it even shrinks as the graph grows, since this
+scenario scales the number of devices, cards and IPs with the users (so an
+ordinary attribute is shared by fewer users) while hub sizes stay fixed. Its
+latency therefore stays flat: at \ScaleMaxUsers{} users a batch takes \ScaleIncMs{}\,ms
+incrementally against \ScaleFullMs{}\,ms in full (\ScaleSpeedup$\times$). At
+1{,}000 users the region already covers almost the whole graph, and the
+incremental mode is slower than full recomputation because of the cost of
+expanding the region. On the accuracy scenarios, incremental and full
+recomputation flag exactly the same rings in every run (ablation
+\emph{no incremental} in Table~\ref{tab:ablation}), so restricting detection to
+the dirty region loses nothing there.
+
+On the small accuracy scenarios one static full-graph pass is cheap
+(\ECapTenFullLat{}\,ms) and cheaper than one batch of the proposed detectors
+(\EPropLat{}\,ms), which build the hub-aware projection and peel it. The
+proposed detectors run per batch, the static rules only on a timer; their time
+to detect is similar here (\EPropTTD{}\,s vs.\ \ECapTenTTD{}\,s) because the
+timer runs every 5 simulated seconds.
+
+\subsection{RQ3: robustness to evasion}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{\figpath/fig4_hub_size.pdf}
+\caption{A shared-IP ring hiding behind an office hub of growing size
+(\texttt{hub\_heavy}, 5 test seeds per size). Left: recall of the hub-hiding
+rings; right: ring F1 (mean, 95\% CI).}
+\label{fig:hubsize}
+\end{figure}
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{\figpath/fig5_evasion.pdf}
+\caption{Ring recall by evasion strategy, pooled over all E1 runs.}
+\label{fig:evasion}
+\end{figure*}
+
+\textbf{Hub size.} In Fig.~\ref{fig:hubsize} the office hub grows from
+\HubSizeMin{} to \HubSizeMax{} accounts. Recall of the hub-hiding rings does
+not fall with hub size for any method (proposed \HubSizePropHidden{}, static
+cap 10 \HubSizeCapTenHidden{} over all sizes). The static rules do not find
+these rings through the shared hub: with the 3-cycle rule switched off, cap 10
+finds \HubSizeCapTenNoCycleHidden{}, because the rings also move money among
+themselves in short cycles. What separates the methods is precision, and so
+F1 (\HubSizePropF{} vs.\ \HubSizeCapTenF{}).
+
+\textbf{Evasion strategies.} Fig.~\ref{fig:evasion} breaks recall down by the
+strategy each planted or random ring uses. The proposed method's advantage in
+recall comes mostly from rings without evasion (\EvPropNone{} vs.\
+\EvCapTenNone{} for cap 10) and rings with decoy edges (\EvPropDecoyEdges{}
+vs.\ \EvCapTenDecoyEdges{}). On hub-hiding rings the two are close
+(\EvPropHubHiding{} vs.\ \EvCapTenHubHiding{}), and identity rotation
+(\EvPropIdentityRotation{}) and low-and-slow activity (\EvPropLowAndSlow{})
+defeat every method we tested, presumably because rotation removes the shared
+attributes the detectors rely on and slow rings accumulate little evidence
+inside one window.
+
+\textbf{Adaptive attacker.} With feedback switched on, the attacker is told
+which of its rings were alerted and shifts its strategy mix. Over
+\AdaptSeeds{} test seeds it switched strategy \AdaptOnSwitches{} times and
+launched \AdaptOnRings{} adaptive rings, of which \AdaptOnFound{} were
+detected; without feedback, \AdaptOffFound{} of \AdaptOffRings{}. Adaptation
+did not lower the detection rate in our simulator, although its strategies are
+limited to the four we implemented.
+
+\subsection{RQ4: sensitivity}
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{\figpath/fig6_sweeps.pdf}
+\caption{Ring F1 of the proposed method and of the static rules (cap 10) when
+the event rate (\texttt{adversarial}), the planted ring size
+(\texttt{baseline}) and the view window (\texttt{drift}, proposed only)
+change; 5 test seeds per point.}
+\label{fig:sweeps}
+\end{figure*}
+Raising the event rate from \SwRateLo{} to \SwRateHi{} events/s lowers the
+proposed method's F1 from \SwRateLoF{} to \SwRateHiF{} and raises its per-batch
+latency from \SwRateLoLat{} to \SwRateHiLat{}\,ms, since each batch touches more
+of the graph (Fig.~\ref{fig:sweeps}). Larger planted rings are harder (F1
+\SwRingSizeLoF{} at size \SwRingSizeLo{}, \SwRingSizeHiF{} at size
+\SwRingSizeHi{}); a likely cause, which we did not isolate, is the 0.75 edge
+density the peeling requires. The view window between
+\SwWindowLo{} and \SwWindowHi{}\,s changes F1 little (\SwWindowLoF{} vs.\
+\SwWindowHiF{}).
+
+\subsection{RQ5: ablations}
+\input{tables/tab2_ablation.tex}
+Table~\ref{tab:ablation} removes one component at a time (\AblPairs{} paired
+runs). The calibrated scorer contributes most: without it F1 falls from
+\AblFullF{} to \AblNoScoringF{} because precision drops to \AblNoScoringP{}.
+Without the hub-aware detector, F1 falls to \AblNoHubAwareF{} and to
+\AblNoHubAwareFHubHeavy{} on \texttt{hub\_heavy}. Removing the cycle or the
+smurfing detector costs \AblNoCycleF{} and \AblNoSmurfingF{}. Replacing the hub
+weight by a constant collapses \texttt{hub\_heavy} (\AblFullFHubHeavy{} to
+\AblNoHubWeightFHubHeavy{}) but slightly helps \texttt{high\_noise}
+(\AblFullFHighNoise{} to \AblNoHubWeightFHighNoise{}), so over all four
+scenarios the difference is not significant ($p=\AblNoHubWeightPval{}$).
+Hysteresis and time decay make no significant difference here; without decay
+F1 is even slightly higher (\AblNoTimeDecayF{}). The accuracy scenarios last
+60--90\,s, short against the 300\,s half-life, so decay has little to act on
+here; its value on long streams is untested.
+
+\subsection{Public data}
+\label{sec:public}
+\input{sections/public.tex}

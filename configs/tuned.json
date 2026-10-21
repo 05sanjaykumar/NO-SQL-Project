@@ -1,0 +1,51 @@
+{
+  "alert_threshold": 0.8,
+  "edge_threshold": 0.3,
+  "mean_f1": 0.7215,
+  "grid": {
+    "tune_a0.2_e0.4": 0.6063,
+    "tune_a0.2_e0.5": 0.5737,
+    "tune_a0.2_e0.6": 0.5408,
+    "tune_a0.3_e0.4": 0.6582,
+    "tune_a0.3_e0.5": 0.6303,
+    "tune_a0.3_e0.6": 0.5854,
+    "tune_a0.5_e0.4": 0.664,
+    "tune_a0.5_e0.5": 0.6507,
+    "tune_a0.5_e0.6": 0.6309,
+    "tune_a0.2_e0.3": 0.6354,
+    "tune_a0.3_e0.3": 0.6453,
+    "tune_a0.5_e0.3": 0.6764,
+    "tune_a0.2_e0.2": 0.5341,
+    "tune_a0.3_e0.2": 0.6028,
+    "tune_a0.5_e0.2": 0.6261,
+    "tune_a0.7_e0.2": 0.648,
+    "tune_a0.7_e0.3": 0.7075,
+    "tune_a0.7_e0.4": 0.6754,
+    "tune_a0.7_e0.5": 0.6674,
+    "tune_a0.7_e0.6": 0.6204,
+    "tune_a0.8_e0.2": 0.648,
+    "tune_a0.8_e0.3": 0.7215,
+    "tune_a0.8_e0.4": 0.6814,
+    "tune_a0.8_e0.5": 0.6694,
+    "tune_a0.8_e0.6": 0.6129,
+    "tune_a0.9_e0.2": 0.6253,
+    "tune_a0.9_e0.3": 0.6802,
+    "tune_a0.9_e0.4": 0.6078,
+    "tune_a0.9_e0.5": 0.5989,
+    "tune_a0.9_e0.6": 0.5807
+  },
+  "selected_by": "max mean ring-level F1 on validation seeds",
+  "validation_seeds": [
+    301,
+    302,
+    303
+  ],
+  "scenarios": [
+    "baseline",
+    "high_noise",
+    "hub_heavy",
+    "adversarial",
+    "drift"
+  ],
+  "results": "results\\tuning\\results.csv"
+}

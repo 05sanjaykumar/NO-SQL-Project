@@ -82,8 +82,48 @@ risk model trained on seeds 101–110. Over the same 2,512 events:
 
 This is a single demonstration run. The cap rules reach the office ring only
 through a coincidental 3-cycle among its members; the shared-IP query skips it
-because of the cap. Multi-seed results for the paper come from the experiment
-harness (Milestone 8).
+because of the cap. Multi-seed results are below.
+
+## Results (Milestone 8)
+
+All numbers come from `results/*/results.csv` (committed), produced by
+`scripts/run_paper_experiments.py` on test seeds 1001+; thresholds were chosen
+on separate validation seeds (`configs/tuned.json`). Every method sees the
+identical event stream per scenario and seed. Commands: [REPRODUCE.md](REPRODUCE.md).
+
+| 5 scenarios x 10 seeds | Ring precision | Ring recall | Ring F1 (mean, 95% CI) |
+|---|---|---|---|
+| **Hub-aware incremental (proposed)** | 0.76 | 0.74 | **0.73 ± 0.05** |
+| Proposed, a-priori thresholds | 0.73 | 0.69 | 0.68 ± 0.05 |
+| Louvain communities | 0.39 | 0.33 | 0.29 ± 0.06 |
+| Static Cypher, cap 10 | 0.14 | 0.61 | 0.21 ± 0.05 |
+| Static Cypher, cap 100 | 0.12 | 0.61 | 0.19 ± 0.05 |
+| Connected components | - | 0.00 | 0.00 |
+
+Every baseline is below the proposed method (paired Wilcoxon p < 0.001).
+
+<p align="center">
+  <img src="docs/paper/figures/fig1_pr_frontier.png" width="45%" alt="Precision/recall: degree cap vs hub weighting"/>
+  <img src="docs/paper/figures/fig2_latency_scaling.png" width="45%" alt="Latency vs graph size"/>
+</p>
+
+- **Degree cap vs hub weighting** (left, shared-attribute rings only): no
+  degree cap gets past recall 0.53 even with the scorer, while hub weighting
+  with the scorer reaches 0.81. At low recall the cap with the scorer is the
+  more precise, so the gain is reach, not dominance.
+- **Scale** (right): full recomputation grows from 0.16 s per batch at 1,000
+  users to 22.5 s at 100,000. The incremental dirty region stays below about
+  2,000 users, so a batch takes 36 ms at 100,000 users. 10^6 users did not fit
+  the 7.7 GB test laptop.
+- **Ablations**: removing the calibrated scorer (F1 0.72 -> 0.39) or the
+  hub-aware detector (-> 0.36) costs most. Incremental and full recomputation
+  flag identical rings.
+- **Limits**: rings that rotate identities or act low-and-slow evade every
+  method tested. Everything here is synthetic; see the paper's threats to
+  validity and [docs/datasets.md](docs/datasets.md) for the public data.
+
+Paper: [`docs/paper/paper.pdf`](docs/paper/paper.pdf) (IEEE conference
+template; tables and the numbers in the text are generated, see `make tables`).
 
 ## Architecture
 
@@ -123,6 +163,8 @@ flowchart LR
 | `src/fraudsim/logging/` | Run logs, audit trail, replay |
 | `src/fraudsim/api/` | FastAPI app, live run, WebSocket |
 | `src/fraudsim/demo/` | `demo-story` page builder |
+| `src/fraudsim/experiments/` | Experiment harness, threshold tuning, suite (E1-E7), statistics, figures, LaTeX tables |
+| `src/fraudsim/datasets/` | Loaders for IBM AMLworld, Elliptic, PaySim |
 | `web/` | Live dashboard (React, Vite, TypeScript, Cytoscape.js, Recharts) |
 | `configs/scenarios/` | baseline, high_noise, hub_heavy, adversarial, scale_sweep, drift, demo_story |
 
@@ -187,12 +229,12 @@ under strict TypeScript (`make web`).
 | M5 Metrics | done |
 | M6 Logging, audit and replay | done |
 | M7 Live React dashboard | done |
-| M8 Experiment harness and paper artefacts | next. `docs/paper` tables are placeholders until real runs fill them |
+| M8 Experiments, statistics, paper, public-data loaders | done (see Results above and `docs/paper/`) |
 | M9 Quality bar (CI, README, reproduction guide) | planned |
 
 Known open items:
-- `src/fraudsim/experiments/latex_export.py` and `plotting.py` still embed
-  hard-coded numbers. They will be replaced with run-derived values in M8.
+- Paper: citations marked `[cite: ...]` still need sources; bibliography entries must be checked before submission.
+- Public datasets: Elliptic and AMLSim fetches wait on the owner's go-ahead (`scripts/fetch_datasets.py`).
 
 ---
 

@@ -1,0 +1,259 @@
+\section{Introduction}
+Fraud rings are groups of accounts that act together: they share devices,
+payment cards or network addresses, and they move money among themselves in
+cycles or fan-in/fan-out patterns. Property graphs make these relations
+explicit, and graph pattern queries are a common way to surface them
+\cite{pourhabibi2020fraud,akoglu2015graph}. Two problems appear as soon as such
+queries run on a live stream of events.
+
+\textbf{The hub dilemma.} Legitimate shared infrastructure, such as an office
+gateway, a carrier-grade NAT address or a store kiosk, links hundreds of
+unrelated accounts. A query that treats every shared attribute as evidence
+floods analysts with false rings. The usual remedy is a hard degree cap:
+attributes shared by more than $c$ accounts are ignored. The cap removes the
+noise but also opens an evasion path, because a ring that shares a busy
+attribute becomes invisible to it.
+
+\textbf{Latency on a stream.} Accounts, links and transfers arrive
+continuously. Re-running whole-graph queries on a timer delays detection, and
+the cost of each pass grows with the graph rather than with the change.
+
+We make four contributions.
+\begin{itemize}
+\item \textbf{C1, hub-aware weighting.} We replace the degree cap with a
+continuous weight: each shared attribute contributes $1/\ln(1+\deg)$ with
+exponential time decay, and transfers inside the pair add weight. Busy hubs
+count for little on their own, but a group that shares a hub and also trades
+among itself still accumulates weight (Section~\ref{sec:method}).
+\item \textbf{C2, incremental detection.} A micro-batch engine re-evaluates only
+the $k$-hop region touched by each batch, with fan-out limits that keep that
+region bounded when it reaches a hub.
+\item \textbf{C3, calibrated, explained alerts.} Candidate rings are scored by a
+calibrated classifier, and each alert carries feature contributions, an
+evidence subgraph and counterfactuals.
+\item \textbf{C4, evaluation under evasion.} A deterministic simulator with
+ring-level ground truth and five evasion strategies, including an attacker that
+adapts to the detector's flags, lets us measure each component on identical
+streams (paired design) with confidence intervals.
+\end{itemize}
+
+\section{Related Work}
+\label{sec:related}
+\textbf{Graph-based fraud detection.} Surveys of graph anomaly detection
+\cite{akoglu2015graph} and of graph-based fraud detection
+\cite{pourhabibi2020fraud} cover dense-subgraph, community and pattern-based
+methods. Dense-subgraph methods such as FRAUDAR \cite{hooi2016fraudar} are
+explicitly designed to resist camouflage edges; they operate on static
+bipartite graphs, while we target a stream with ring-level alerts.
+\TODOcite{dense subgraph detection on streams (e.g. incremental densest subgraph)}
+
+\textbf{Community detection.} Louvain modularity optimisation
+\cite{blondel2008louvain} is a common unsupervised baseline for finding groups
+of colluding accounts; we use it as a baseline.
+
+\textbf{Streaming and incremental graph analytics.}
+\TODOcite{incremental graph pattern matching / continuous subgraph queries}
+\TODOcite{Neo4j GDS or streaming graph database systems}
+
+\textbf{Graph neural networks for AML.} GNNs have been applied to transaction
+graphs such as Elliptic \cite{weber2019elliptic} and AMLworld
+\cite{altman2023amlworld}. They classify transactions or accounts rather than
+emit groups, and they are not evaluated here (Section~\ref{sec:threats}).
+\TODOcite{GNN fraud ring / camouflage-resistant GNN work}
+
+\textbf{Hub handling.} Down-weighting high-degree nodes by
+$1/\log(\deg)$ follows the Adamic--Adar idea from link prediction.
+\TODOcite{Adamic and Adar 2003, Friends and neighbors on the Web}
+
+\section{Method}
+\label{sec:method}
+Fig.~\ref{fig:arch} shows the system. A seeded simulator emits observable
+events (account joins and leaves, attribute links, transfers); ground truth
+goes only to a ledger the detector never sees.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{\figpath/architecture.pdf}
+\caption{Architecture. Solid arrows are the observable data path; dashed
+arrows carry labels (to evaluation only) and, in closed-loop runs, the
+detector's flags back to the adaptive attacker.}
+\label{fig:arch}
+\end{figure}
+
+\subsection{Graph model}
+Users link to devices, cards and IP addresses
+(\texttt{USED\_DEVICE}, \texttt{HAS\_CARD}, \texttt{LOGGED\_IN\_FROM}) and send
+transfers to each other. The same contract is implemented over Neo4j (Cypher)
+and over an in-memory store with identical semantics; all experiments below use
+the in-memory store.
+
+\subsection{Hub-aware weighting (C1)}
+For two users $u,v$ the edge weight is
+\begin{equation}
+W(u,v)=\sum_{a\in A(u)\cap A(v)} h(\deg a)\,\delta(t_a)
++\min\Big(\beta\sum_{x\in T(u,v)}\delta(t_x),\,\beta_{\max}\Big),
+\label{eq:w}
+\end{equation}
+where $h(d)=1/\ln(1+d)$, $\delta(t)=2^{-t/\tau}$ is exponential decay with
+half-life $\tau=300$\,s, $t_a$ is the age of the older of the two links to
+attribute $a$, and $T(u,v)$ are the transfers between $u$ and $v$ in the
+window, with $\beta=0.15$ and $\beta_{\max}=0.6$. A device shared by three
+accounts weighs $0.72$; an office address shared by fifty weighs $0.25$.
+Candidate rings are the connected components of the graph of pairs with
+$W\ge\theta_e$ (and a non-zero attribute term), peeled to cores of edge density
+at least $0.75$ and size 3--25. The edge threshold $\theta_e$ is selected on
+validation seeds (Section~\ref{sec:protocol}).
+
+\subsection{Incremental detection (C2)}
+Events are grouped into micro-batches of 50. For each batch the engine takes
+the users it touched, expands them by $k=2$ hops through shared attributes and
+transfers, and builds a view of that region over a 900\,s window, together with
+the \emph{global} degree of every attribute in it, so $h(\deg a)$ is the same as
+in a full pass. The first hop may cross attributes with up to 250 users (so the
+co-members of a hub are re-examined); later hops cross only attributes with at
+most 20 users, which stops the region from spreading through hubs. Incremental
+detectors (hub-aware shared attribute, temporal cycle, smurfing) run on the
+view; whole-graph detectors (the static Cypher rules and community detection)
+run on a timer.
+
+\subsection{Ensemble, tracking and scoring (C3)}
+Candidates from different detectors are merged when their Jaccard overlap is at
+least $0.5$, or when one contains $80\%$ of the other and they differ in size by
+at most a factor of two. A tracker matches candidates to existing rings across
+batches; a ring is \emph{confirmed} after two consecutive hits and dissolved
+after three misses. Confirmed rings are scored by a logistic-regression model
+over 19 ring features (size, density, which attribute kinds are shared, the
+hub-adjusted weight, cycle presence and length, burstiness, account ages,
+internal transfers per member, amount statistics, growth, hub exposure and
+the number of agreeing detectors), calibrated with isotonic regression
+\cite{zadrozny2002isotonic}. A ring becomes an alert when its calibrated risk
+reaches the alert threshold $\theta_a$. Each alert carries the per-feature
+contributions to the score, the subgraph of shared attributes and transfers
+that formed it, and counterfactuals (for the leading features, the value at which
+the risk would fall below the threshold, and for hub-aware rings the degree the
+shared attribute would need before the rule stops firing). The model is trained on
+seeds disjoint from all evaluation seeds.
+
+\section{Experimental Setup}
+\label{sec:setup}
+\subsection{Simulator and scenarios}
+The simulator is a deterministic discrete-event generator: a scenario file and
+a seed fix the whole stream, which we verify by a digest of the event sequence
+recorded with every result. Benign users join and leave, link to devices, cards
+and IPs drawn from heavy-tailed popularity, and transact; benign hubs (offices,
+carrier NAT, kiosks, family devices) are generated with configured sizes. Ring
+types are shared device, card or IP, mixed attribute, money cycle, layered
+chain and smurfing fan-in/fan-out. Evasion strategies are hub hiding (the ring
+shares a busy benign hub), low-and-slow activity, identity rotation, decoy edges
+to benign users, and an adaptive attacker that shifts its strategy mix away
+from strategies that were flagged.
+Table~\ref{tab:scenario-def} lists the scenarios.
+
+\begin{table}[t]
+\centering
+\caption{Scenarios (from \texttt{configs/scenarios/*.yaml}).}
+\label{tab:scenario-def}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lrrrl}
+\toprule
+Scenario & Users & Dur.\,(s) & Ev./s & Rings and evasion \\
+\midrule
+baseline & 30 & 60 & 10 & 4 planted, none \\
+high\_noise & 150 & 60 & 50 & 4 planted + random, decoys \\
+hub\_heavy & 100 & 60 & 25 & 4 planted, hub hiding \\
+adversarial & 120 & 90 & 30 & 5 planted + random, all five \\
+drift & 200 & 90 & 40 & 2 planted + random, hub hiding \\
+demo\_story & 120 & 90 & 20 & 3 planted, hub hiding \\
+scale\_sweep & $10^3$+ & 120 & 100 & latency benchmark (E4) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Protocol}
+\label{sec:protocol}
+Seeds are split three ways: scorer training (101--110, test 201--205),
+threshold selection (validation, 301--303) and evaluation (test, 1001 and up).
+On the validation seeds we evaluated a grid of alert thresholds
+$\theta_a\in\{0.2,0.3,0.5,0.7,0.8,0.9\}$ and edge thresholds
+$\theta_e\in\{0.2,0.3,0.4,0.5,0.6\}$ on the five accuracy scenarios; the grid was
+widened whenever the best value sat on its edge. The selected values are
+$\theta_a=\TunedAlert$ and $\theta_e=\TunedEdge$ (mean validation F1
+$\TunedValF$). We report the proposed method both with these values and with
+the a-priori values $\theta_a=\theta_e=0.5$.
+
+Every method in an experiment processes the \emph{identical} event stream for a
+given scenario and seed (the attacker does not receive feedback in these runs),
+so differences between methods are paired. We report the mean and 95\%
+$t$-interval over runs, and test differences with the Wilcoxon signed-rank test
+on paired runs, with Cohen's $d_z$ as effect size.
+
+\subsection{Metrics}
+A flagged ring \emph{matches} a true ring when their member sets overlap with
+Jaccard at least $0.5$. Ring precision is the fraction of flagged rings that
+match a true ring; ring recall is the fraction of true rings matched at some
+point while active. A run in which nothing is flagged has undefined precision;
+we count its F1 as 0. Time to detect (TTD) is the time from a ring's
+activation to its first matching flag. Detection latency is the wall-clock time
+per micro-batch for the dirty-region expansion, the view and the incremental
+detectors.
+
+\subsection{Baselines}
+\begin{itemize}
+\item \textbf{Static Cypher, cap 100 / cap 10.} The original rules: shared
+device (Q1), shared card (Q2), 3-cycles of transfers (Q3), and shared IP with a
+degree cap (Q4a/Q4b), run on the whole graph every 5\,s of simulated time.
+\item \textbf{Louvain.} Louvain communities \cite{blondel2008louvain} of the
+user graph projected through shared attributes and transfers, kept when dense
+enough.
+\item \textbf{Connected components.} Weakly connected components of the same
+projection, no density filter.
+\end{itemize}
+All baselines use the same two-hit confirmation as the proposed method.
+
+\subsection{Environment}
+All runs used one laptop (Intel Core i3-1115G4, 2 cores / 4 threads, 7.7\,GB
+RAM, Windows 11), Python 3.11.9, NumPy 2.2.6, scikit-learn 1.7.2,
+NetworkX 3.5, with experiments run one at a time.
+
+\input{sections/results.tex}
+
+\section{Threats to Validity}
+\label{sec:threats}
+\textbf{Simulator realism.} All main results come from our simulator. Hub
+sizes, ring behaviour and evasion strategies follow our configuration, not
+observed fraud. A detector tuned to this generator may do worse on real
+traffic, and the absolute numbers should not be read as field performance.
+
+\textbf{Synthetic labels.} Ground truth is the set of rings the simulator
+planted. Benign groups that happen to look like rings count as false
+positives, and planted rings that never become visible in the stream still
+count against recall; both directions affect every method equally.
+
+\textbf{Public data.} The public datasets we could obtain carry no device,
+card or IP links, so they cannot test hub-aware weighting at all; on them only
+the transaction detectors run (Section~\ref{sec:public}). Elliptic and AMLSim
+were \TBD{evaluated / not evaluated, depending on downloads}.
+
+\textbf{Tuning.} Thresholds were selected on validation seeds of the same
+generator; the test seeds are independent draws but from the same
+distribution.
+
+\textbf{Scale.} \TBD{state the largest graph measured (\ScaleMaxUsers{} users)
+and that $10^6$ was not feasible on the test machine, if so}.
+
+\textbf{Latency.} Latencies are measured on the in-memory store on a laptop;
+Neo4j adds query and transport cost that we did not include in these numbers.
+
+\textbf{Baselines.} We do not compare with GNN classifiers, which answer a
+different question (per-node labels rather than groups) and need labelled
+training graphs.
+
+\section{Conclusion}
+\TBD{Written from the final results.}
+
+\section*{Reproducibility}
+Code, scenario files, trained models and the scripts that produce every table
+and figure are in the project repository; \texttt{REPRODUCE.md} lists the exact
+commands. Each result row records its scenario hash, method configuration hash
+and event-stream digest.

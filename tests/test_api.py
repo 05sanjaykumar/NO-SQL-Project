@@ -207,7 +207,7 @@ def test_dashboard_controls(client: TestClient):
     assert cfg["alert_threshold"] == 0.7 and cfg["hub_weight_method"] == "adamic_adar"
     assert client.post("/config", json={"alert_threshold": 1.5}).status_code == 422
 
-    for _ in range(300):
+    for _ in range(1200):  # up to 60 s: the run takes ~15 s and longer on a busy machine
         if client.get("/status").json()["status"] == "finished":
             break
         time.sleep(0.05)

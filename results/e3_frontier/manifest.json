@@ -1,0 +1,755 @@
+{
+  "grids": [
+    {
+      "experiment": "e3_frontier",
+      "scenarios": [
+        "hub_heavy",
+        "adversarial",
+        "demo_story",
+        "high_noise"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592",
+        "adversarial": "e348c3eccc50e4bb",
+        "demo_story": "3bd19c5330560dea",
+        "high_noise": "7f768d989b7d51e6"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "cap_3",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 3,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "degree cap 3",
+          "hash": "8e95b714f2f4bbb8"
+        },
+        {
+          "name": "cap_5",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 5,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "degree cap 5",
+          "hash": "9c8bed849ecd054e"
+        },
+        {
+          "name": "cap_10",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "degree cap 10",
+          "hash": "eb217cf231446db7"
+        },
+        {
+          "name": "cap_20",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 20,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "degree cap 20",
+          "hash": "64e7b5391645f41f"
+        },
+        {
+          "name": "cap_50",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 50,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "degree cap 50",
+          "hash": "461a1799ae65a239"
+        },
+        {
+          "name": "cap_100",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 100,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "degree cap 100",
+          "hash": "73156a3bf55ff5e8"
+        },
+        {
+          "name": "cap_200",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 200,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "degree cap 200",
+          "hash": "eb67859be3758f8e"
+        },
+        {
+          "name": "hub_0.3",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "hub-aware edge threshold 0.3",
+          "hash": "6b067b9df676da70"
+        },
+        {
+          "name": "hub_0.4",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.4
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "hub-aware edge threshold 0.4",
+          "hash": "acdbc9d9a6c8479a"
+        },
+        {
+          "name": "hub_0.5",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.5
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "hub-aware edge threshold 0.5",
+          "hash": "0ef391a29826f395"
+        },
+        {
+          "name": "hub_0.6",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.6
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "hub-aware edge threshold 0.6",
+          "hash": "393299a1ece802c0"
+        },
+        {
+          "name": "hub_0.8",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.8
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "hub-aware edge threshold 0.8",
+          "hash": "9fe4e9af0b2056fa"
+        },
+        {
+          "name": "hub_1.0",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 1.0
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "hub-aware edge threshold 1.0",
+          "hash": "cfee1255a5a3f9e7"
+        },
+        {
+          "name": "hub_1.3",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 1.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "hub-aware edge threshold 1.3",
+          "hash": "77717fdceac7637e"
+        }
+      ],
+      "scenario_overrides": {},
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 280,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e3_frontier",
+      "scenarios": [
+        "hub_heavy",
+        "adversarial",
+        "demo_story",
+        "high_noise"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592",
+        "adversarial": "e348c3eccc50e4bb",
+        "demo_story": "3bd19c5330560dea",
+        "high_noise": "7f768d989b7d51e6"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "capS_0.2",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.2,
+          "label": "degree cap 10 + scorer, alert 0.2",
+          "hash": "51aed736969fecff"
+        },
+        {
+          "name": "hubS_0.2",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.2,
+          "label": "hub-aware + scorer, alert 0.2",
+          "hash": "e5c59803ef364677"
+        },
+        {
+          "name": "capS_0.5",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.5,
+          "label": "degree cap 10 + scorer, alert 0.5",
+          "hash": "6479310375df159e"
+        },
+        {
+          "name": "hubS_0.5",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.5,
+          "label": "hub-aware + scorer, alert 0.5",
+          "hash": "191509e770d51a5d"
+        },
+        {
+          "name": "capS_0.7",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.7,
+          "label": "degree cap 10 + scorer, alert 0.7",
+          "hash": "407391d94d06d9c2"
+        },
+        {
+          "name": "hubS_0.7",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.7,
+          "label": "hub-aware + scorer, alert 0.7",
+          "hash": "59d2a0d38efd5e7b"
+        },
+        {
+          "name": "capS_0.8",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "degree cap 10 + scorer, alert 0.8",
+          "hash": "789f87d43e470181"
+        },
+        {
+          "name": "hubS_0.8",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "hub-aware + scorer, alert 0.8",
+          "hash": "aa4ba4b8abac5d6a"
+        },
+        {
+          "name": "capS_0.9",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.9,
+          "label": "degree cap 10 + scorer, alert 0.9",
+          "hash": "ed5f741098da62b8"
+        },
+        {
+          "name": "hubS_0.9",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.9,
+          "label": "hub-aware + scorer, alert 0.9",
+          "hash": "2266fa3380dac2af"
+        },
+        {
+          "name": "capS_0.95",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.95,
+          "label": "degree cap 10 + scorer, alert 0.95",
+          "hash": "c213b129354b1515"
+        },
+        {
+          "name": "hubS_0.95",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.95,
+          "label": "hub-aware + scorer, alert 0.95",
+          "hash": "5c8034368a43e9a2"
+        }
+      ],
+      "scenario_overrides": {},
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 240,
+      "python": "3.11.9"
+    }
+  ]
+}

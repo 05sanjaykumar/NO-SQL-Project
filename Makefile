@@ -1,9 +1,10 @@
-.PHONY: help install dev lint test test-unit test-integration simulate simulate-all train-scorer demo-story web web-dev api experiment demo clean
+.PHONY: help install dev lint test test-unit test-integration simulate simulate-all train-scorer demo-story web web-dev api experiment experiment-all figures tables paper demo clean
 
 PYTHON ?= python
 DOCKER ?= docker compose
 SEEDS  ?= 5
 SCENARIO ?= baseline
+SUITE  ?= baselines
 SEED   ?= 42
 
 help: ## Show this help
@@ -84,23 +85,22 @@ demo-story: ## One-command demo: hidden ring vs degree cap, writes demo/story.ht
 
 # ─── Experiments ──────────────────────────────────────────────────────
 
-experiment: ## Run a full experiment: make experiment SCENARIO=adversarial SEEDS=20
-	$(PYTHON) -m fraudsim.experiments.runner \
-		--scenario $(SCENARIO) \
-		--seeds $(SEEDS) \
-		--output-dir results/
+experiment: ## Run a paper experiment: make experiment SUITE=baselines SEEDS=10 (SUITE=tune first)
+	$(PYTHON) -m fraudsim.cli experiment --suite $(SUITE) --seeds $(SEEDS) --output-dir results/
 
-experiment-all: ## Run all standard experiments
-	@for s in baseline high_noise hub_heavy adversarial scale_sweep drift; do \
-		echo "=== Running scenario: $$s ===" ; \
-		$(MAKE) experiment SCENARIO=$$s SEEDS=$(SEEDS) ; \
-	done
+experiment-all: ## Tune on validation seeds, then run the paper experiments with the seed counts used in the paper (~2-3 h)
+	$(PYTHON) -m fraudsim.cli experiment --suite tune --output-dir results/
+	PYTHONPATH=src $(PYTHON) scripts/run_paper_experiments.py
 
 figures: ## Generate paper figures from experiment results
 	$(PYTHON) -m fraudsim.experiments.plotting --results-dir results/ --output-dir docs/paper/figures/
+	$(PYTHON) scripts/make_architecture.py
 
-tables: ## Generate LaTeX tables from experiment results
+tables: ## Generate LaTeX tables and number macros from experiment results
 	$(PYTHON) -m fraudsim.experiments.latex_export --results-dir results/ --output-dir docs/paper/tables/
+
+paper: figures tables ## Regenerate figures/tables, then build docs/paper/paper.pdf (needs pdflatex)
+	cd docs/paper && pdflatex -interaction=nonstopmode paper.tex && bibtex paper && pdflatex -interaction=nonstopmode paper.tex && pdflatex -interaction=nonstopmode paper.tex
 
 # ─── Demo ─────────────────────────────────────────────────────────────
 

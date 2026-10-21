@@ -6,10 +6,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
+
 from fraudsim.experiments.ablations import ABLATION_VARIANTS
 from fraudsim.experiments.baselines import BASELINES
-from fraudsim.experiments.latex_export import generate_ablation_table, generate_baseline_table
-from fraudsim.experiments.plotting import plot_latency_scaling, plot_pr_frontier
+from fraudsim.experiments.latex_export import generate_baseline_table
+from fraudsim.experiments.plotting import plot_pr_frontier
 from fraudsim.experiments.runner import run_single_experiment
 from fraudsim.simulator.scenario_loader import load_scenario
 
@@ -42,13 +44,32 @@ def test_experiment_run(tmp_path: Path):
         assert res[key] is None
 
 
-def test_plotting_and_latex(tmp_path: Path):
-    plot_pr_frontier(tmp_path)
-    plot_latency_scaling(tmp_path)
-    assert (tmp_path / "fig1_pr_frontier.pdf").exists()
-    assert (tmp_path / "fig2_latency_scaling.pdf").exists()
+def test_figures_and_tables_skip_without_results(tmp_path: Path):
+    # No results -> nothing is written (no placeholder numbers).
+    assert plot_pr_frontier(tmp_path, tmp_path / "none") is None
+    assert generate_baseline_table(tmp_path, tmp_path / "none") is None
+    assert not list(tmp_path.glob("*.pdf")) and not list(tmp_path.glob("*.tex"))
 
-    generate_baseline_table(tmp_path)
-    generate_ablation_table(tmp_path)
-    assert (tmp_path / "tab1_baselines.tex").exists()
-    assert (tmp_path / "tab2_ablation.tex").exists()
+
+def test_figures_and_tables_from_real_runs(tmp_path: Path):
+    from fraudsim.experiments.harness import baseline_methods, run_grid
+    from fraudsim.experiments.latex_export import generate_numbers
+    from fraudsim.experiments.plotting import plot_evasion
+
+    results = tmp_path / "results"
+    methods = [m for m in baseline_methods() if m.name in ("static_cap10", "proposed")]
+    csv = run_grid("e1_baselines", ["baseline"], [1001], methods, results, log=lambda _: None)
+    df = pd.read_csv(csv)
+    assert set(df["method"]) == {"static_cap10", "proposed"}
+
+    out = tmp_path / "paper"
+    assert plot_evasion(out, results)
+    assert (out / "fig5_evasion.pdf").exists()
+    tab = generate_baseline_table(out, results)
+    text = tab.read_text(encoding="utf-8")
+    assert "sha256" in text and "Static" in text
+    # The table's F1 for the proposed method is exactly the run's F1.
+    f1 = df.set_index("method").loc["proposed", "f1"]
+    assert f"{(0.0 if pd.isna(f1) else f1):.2f}" in text
+    nums = generate_numbers(out, results).read_text(encoding="utf-8")
+    assert r"\EPropF" in nums

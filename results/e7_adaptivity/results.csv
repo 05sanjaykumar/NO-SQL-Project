@@ -1,0 +1,21 @@
+experiment,run_id,seed,feedback,stream_digest,recall,precision,adaptive_rings,adaptive_detected,strategy_switches,final_weights
+e7_adaptivity,e7:1001:no_feedback,1001,False,556c08141e46eb36,0.7143,1.0,1,1,0,
+e7_adaptivity,e7:1001:feedback,1001,True,6e369519e67728b7,0.7778,1.0,3,3,3,"{""hub_hiding"": 0.5, ""low_and_slow"": 1.0, ""identity_rotation"": 0.5, ""decoy_edges"": 0.5}"
+e7_adaptivity,e7:1002:no_feedback,1002,False,5806cd8051a2b856,0.6,0.8,1,1,0,
+e7_adaptivity,e7:1002:feedback,1002,True,65514630231c392e,0.5,0.75,2,1,1,"{""hub_hiding"": 1.0, ""low_and_slow"": 1.0, ""identity_rotation"": 0.5, ""decoy_edges"": 1.0}"
+e7_adaptivity,e7:1003:no_feedback,1003,False,7cf0d9924896f60b,0.1667,0.1667,1,0,0,
+e7_adaptivity,e7:1003:feedback,1003,True,3ccadf56933b294c,0.3333,0.3333,1,1,3,"{""hub_hiding"": 1.0, ""low_and_slow"": 1.0, ""identity_rotation"": 0.25, ""decoy_edges"": 0.5}"
+e7_adaptivity,e7:1004:no_feedback,1004,False,d49a8dd75a856fa6,0.5,0.75,1,1,0,
+e7_adaptivity,e7:1004:feedback,1004,True,b4ade604682e2995,0.5,0.6667,3,2,2,"{""hub_hiding"": 1.0, ""low_and_slow"": 1.0, ""identity_rotation"": 0.5, ""decoy_edges"": 0.5}"
+e7_adaptivity,e7:1005:no_feedback,1005,False,49e0725d59cd8b5f,0.5,0.5714,1,1,0,
+e7_adaptivity,e7:1005:feedback,1005,True,380e2d1a63f1ed8d,0.5,0.5714,1,1,1,"{""hub_hiding"": 1.0, ""low_and_slow"": 0.5, ""identity_rotation"": 1.0, ""decoy_edges"": 1.0}"
+e7_adaptivity,e7:1006:no_feedback,1006,False,8a0b54e233f540ef,0.625,0.7143,1,0,0,
+e7_adaptivity,e7:1006:feedback,1006,True,89abb73b82a00c7f,0.8,0.8889,3,3,2,"{""hub_hiding"": 1.0, ""low_and_slow"": 1.0, ""identity_rotation"": 0.5, ""decoy_edges"": 0.5}"
+e7_adaptivity,e7:1007:no_feedback,1007,False,00a1b2a3bdb5e1ed,0.7143,1.0,2,2,0,
+e7_adaptivity,e7:1007:feedback,1007,True,c541d8276e86f1b9,0.7143,0.7143,2,2,4,"{""hub_hiding"": 0.5, ""low_and_slow"": 1.0, ""identity_rotation"": 0.25, ""decoy_edges"": 0.5}"
+e7_adaptivity,e7:1008:no_feedback,1008,False,1e1108613a1e5df5,0.5,0.5714,1,1,0,
+e7_adaptivity,e7:1008:feedback,1008,True,f0e8d7aea41b1b9b,0.6,0.75,3,3,4,"{""hub_hiding"": 0.5, ""low_and_slow"": 0.5, ""identity_rotation"": 0.5, ""decoy_edges"": 0.5}"
+e7_adaptivity,e7:1009:no_feedback,1009,False,01dd9bba703f3e8a,0.5,0.8,1,1,0,
+e7_adaptivity,e7:1009:feedback,1009,True,57f9766e31dd736b,0.4286,0.8,2,1,1,"{""hub_hiding"": 0.5, ""low_and_slow"": 1.0, ""identity_rotation"": 1.0, ""decoy_edges"": 1.0}"
+e7_adaptivity,e7:1010:no_feedback,1010,False,5c4cebaec0b93686,0.4,0.5,1,1,0,
+e7_adaptivity,e7:1010:feedback,1010,True,5c19241165a86983,0.3333,0.6667,2,1,1,"{""hub_hiding"": 1.0, ""low_and_slow"": 1.0, ""identity_rotation"": 0.5, ""decoy_edges"": 1.0}"

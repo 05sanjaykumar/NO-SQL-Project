@@ -1,0 +1,229 @@
+{
+  "grids": [
+    {
+      "experiment": "e2_ablations",
+      "scenarios": [
+        "adversarial",
+        "hub_heavy",
+        "high_noise",
+        "baseline"
+      ],
+      "scenario_hashes": {
+        "adversarial": "e348c3eccc50e4bb",
+        "hub_heavy": "031690a6797d4592",
+        "high_noise": "7f768d989b7d51e6",
+        "baseline": "8c6300432edfabdb"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "proposed",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "Full system",
+          "hash": "66e56ec6065dad98"
+        },
+        {
+          "name": "no_hub_weight",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "weight_method": "none",
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "w/o hub weighting",
+          "hash": "b9197e32a7f308a5"
+        },
+        {
+          "name": "no_time_decay",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "time_decay_half_life_s": null,
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "w/o time decay",
+          "hash": "01c2dad76616a801"
+        },
+        {
+          "name": "no_incremental",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {
+            "incremental": false
+          },
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "w/o incremental scheduling",
+          "hash": "14b1310dcb38d615"
+        },
+        {
+          "name": "no_scoring",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "w/o risk model",
+          "hash": "5ef53aaa7732dd36"
+        },
+        {
+          "name": "no_hysteresis",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {
+            "hysteresis_confirm": 1,
+            "hysteresis_dissolve": 1
+          },
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "w/o hysteresis",
+          "hash": "1713d3d203176ad7"
+        },
+        {
+          "name": "no_hub_aware",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "enabled": false,
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "w/o hub-aware detector",
+          "hash": "8d68e25a7f2fec4a"
+        },
+        {
+          "name": "no_cycle",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "w/o cycle detector",
+          "hash": "57d8e5450d1c1ca9"
+        },
+        {
+          "name": "no_smurfing",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "w/o smurfing detector",
+          "hash": "297211f6c403d7bb"
+        }
+      ],
+      "scenario_overrides": {},
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 180,
+      "python": "3.11.9"
+    }
+  ]
+}

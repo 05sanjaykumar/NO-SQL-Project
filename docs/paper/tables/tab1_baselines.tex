@@ -1,18 +1,22 @@
-% PLACEHOLDER: no experiments have run yet. Regenerated from real runs in Milestone 8 via `make tables`.
-\begin{table}[t]
+% generated from results/e1_baselines/results.csv (sha256 7725d8fa88a896e5, 300 rows)
+\begin{table*}[t]
 \centering
-\caption{Detection performance comparison across baselines. \TBD{pending experiment runs}}
-\label{tab:baseline_comparison}
-\begin{tabular}{lcccc}
+\caption{Ring-level detection on 5 scenarios $\times$ 10 test seeds (mean $\pm$ 95\% CI over runs;
+a run with no flags has undefined precision and counts as F1 $=0$). TTD: median time from ring activation to
+first flag. Latency: median per-batch detection time on the in-memory store; $^\dagger$full-graph
+methods run on a 5\,s timer, not per batch, so their entry is the median time of one full-graph pass. $p$: paired Wilcoxon signed-rank
+test of F1 against the proposed method on identical streams.}
+\label{tab:baselines}
+\begin{tabular}{lcccccc}
 \toprule
-\textbf{Method} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Latency (ms)} \\
+Method & Precision & Recall & F1 & TTD (s) & Latency (ms) & $p$ \\
 \midrule
-Static Cypher (cap=100) & -- & -- & -- & -- \\
-Static Cypher (cap=10)  & -- & -- & -- & -- \\
-Plain CC                & -- & -- & -- & -- \\
-GDS Louvain Community   & -- & -- & -- & -- \\
-\midrule
-Proposed (Hub-Aware Incremental) & -- & -- & -- & -- \\
+Static Cypher (cap 100) & 0.12 $\pm$ 0.03 & 0.61 $\pm$ 0.08 & 0.19 $\pm$ 0.05 & 9.5 & 6.0$^\dagger$ & $<$0.001 \\
+Static Cypher (cap 10) & 0.14 $\pm$ 0.04 & 0.61 $\pm$ 0.08 & 0.21 $\pm$ 0.05 & 9.5 & 5.9$^\dagger$ & $<$0.001 \\
+Louvain communities & 0.39 $\pm$ 0.09 & 0.33 $\pm$ 0.08 & 0.29 $\pm$ 0.06 & 18.8 & 38.4$^\dagger$ & $<$0.001 \\
+Connected components & -- & 0.00 $\pm$ 0.00 & 0.00 $\pm$ 0.00 & -- & 11.1$^\dagger$ & $<$0.001 \\
+Hub-aware incremental (proposed) & 0.76 $\pm$ 0.06 & 0.74 $\pm$ 0.06 & \textbf{0.73 $\pm$ 0.05} & 9.3 & 26.6 & -- \\
+Proposed, a-priori thresholds & 0.73 $\pm$ 0.06 & 0.69 $\pm$ 0.06 & 0.68 $\pm$ 0.05 & 9.0 & 22.7 & 0.034 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}

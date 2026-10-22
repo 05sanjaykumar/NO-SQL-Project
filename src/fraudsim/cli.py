@@ -4,6 +4,8 @@ Command Line Interface (CLI) for fraudsim.
 
 from __future__ import annotations
 
+import json
+
 import click
 import uvicorn
 
@@ -279,12 +281,26 @@ def train_scorer_cmd(
 
 
 @main.command()
-@click.option("--scenario", default="baseline", help="Scenario name")
-@click.option("--seeds", default=5, help="Number of random seeds")
+@click.option(
+    "--suite",
+    default=None,
+    help="Paper experiment: tune | baselines | ablations | frontier | scale | hub_size | "
+    "sweeps | adaptivity | all (writes results/<experiment>/results.csv)",
+)
+@click.option("--scenario", default="baseline", help="Scenario name (simulation-only run)")
+@click.option("--seeds", default=5, help="Number of test seeds (1001, 1002, ...)")
 @click.option("--output-dir", default="results/", help="Results directory")
-def experiment(scenario: str, seeds: int, output_dir: str) -> None:
-    """Run a headless experiment across multiple seeds."""
+def experiment(suite: str | None, scenario: str, seeds: int, output_dir: str) -> None:
+    """Run a paper experiment suite, or a simulation-only run of one scenario."""
     import sys
+
+    if suite:
+        from pathlib import Path
+
+        from fraudsim.experiments.suite import run_suite
+
+        click.echo(run_suite(suite, Path(output_dir), seeds, log=click.echo))
+        return
 
     from fraudsim.experiments.runner import main as run_exp
 
@@ -298,6 +314,54 @@ def experiment(scenario: str, seeds: int, output_dir: str) -> None:
         output_dir,
     ]
     run_exp()
+
+
+@main.command()
+@click.option(
+    "--dataset", type=click.Choice(["amlworld", "elliptic", "paysim", "amlsim"]), required=True
+)
+@click.option("--path", default=None, help="Dataset folder (default data/raw/<dataset>)")
+@click.option("--max-rows", default=None, type=int, help="Read only the first N rows")
+@click.option("--window-s", default=900.0, help="Rolling transaction window of the views")
+@click.option("--start-day", default=0.0, help="AMLworld: slice start, days from the first date")
+@click.option("--days", default=None, type=float, help="AMLworld: slice length in days")
+@click.option("--output-dir", default="results/", help="Appends to <output-dir>/public/results.csv")
+def public(
+    dataset: str,
+    path: str | None,
+    max_rows: int | None,
+    window_s: float,
+    start_day: float,
+    days: float | None,
+    output_dir: str,
+) -> None:
+    """Replay a public dataset through the transaction detectors and score it."""
+    import time
+    from pathlib import Path
+
+    import pandas as pd
+
+    from fraudsim.datasets import load_dataset, run_public
+
+    kw = {"max_rows": max_rows} if dataset in ("amlworld", "paysim") else {}
+    if dataset == "amlworld":
+        kw |= {"start_day": start_day, "days": days}
+    ds = load_dataset(dataset, path or f"data/raw/{dataset}", **kw)
+    row = run_public(ds, window_s=window_s, log=lambda m: click.echo(m, err=True))
+    row = {k: (json.dumps(v) if isinstance(v, (dict, list)) else v) for k, v in row.items()}
+    row["window_s"] = window_s
+    out = Path(output_dir) / "public"
+    (out / "runs").mkdir(parents=True, exist_ok=True)
+    click.echo(json.dumps(row, indent=2))
+    # Each run is kept as JSON first; the CSV is the union of all runs' columns, since
+    # datasets report different fields (attempt recall exists only for AMLworld).
+    stamp = time.strftime("%Y%m%dT%H%M%S")
+    (out / "runs" / f"{row['dataset']}_{stamp}.json").write_text(
+        json.dumps(row, indent=2), encoding="utf-8"
+    )
+    csv_path = out / "results.csv"
+    table = pd.read_csv(csv_path) if csv_path.exists() else pd.DataFrame()
+    pd.concat([table, pd.DataFrame([row])], ignore_index=True).to_csv(csv_path, index=False)
 
 
 @main.command()

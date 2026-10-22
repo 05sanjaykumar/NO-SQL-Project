@@ -1,0 +1,18 @@
+% generated from results/e1_baselines/results.csv (sha256 7725d8fa88a896e5, 300 rows)
+\begin{table*}[t]
+\centering
+\caption{Ring F1 per scenario (mean $\pm$ 95\% CI over 10 test seeds).}
+\label{tab:scenarios}
+\begin{tabular}{lccccc}
+\toprule
+Method & baseline & high\_noise & hub\_heavy & adversarial & drift \\
+\midrule
+Static Cypher (cap 100) & 0.48 $\pm$ 0.07 & 0.06 $\pm$ 0.02 & 0.24 $\pm$ 0.04 & 0.14 $\pm$ 0.04 & 0.05 $\pm$ 0.02 \\
+Static Cypher (cap 10) & 0.54 $\pm$ 0.08 & 0.07 $\pm$ 0.02 & 0.27 $\pm$ 0.05 & 0.14 $\pm$ 0.04 & 0.05 $\pm$ 0.02 \\
+Louvain communities & 0.44 $\pm$ 0.09 & 0.26 $\pm$ 0.19 & 0.24 $\pm$ 0.09 & 0.14 $\pm$ 0.09 & 0.38 $\pm$ 0.16 \\
+Connected components & 0.00 $\pm$ 0.00 & 0.00 $\pm$ 0.00 & 0.00 $\pm$ 0.00 & 0.00 $\pm$ 0.00 & 0.00 $\pm$ 0.00 \\
+Hub-aware incremental (proposed) & 0.99 $\pm$ 0.03 & 0.62 $\pm$ 0.08 & 0.79 $\pm$ 0.08 & 0.59 $\pm$ 0.14 & 0.67 $\pm$ 0.04 \\
+Proposed, a-priori thresholds & 0.93 $\pm$ 0.07 & 0.66 $\pm$ 0.05 & 0.66 $\pm$ 0.12 & 0.53 $\pm$ 0.11 & 0.62 $\pm$ 0.09 \\
+\bottomrule
+\end{tabular}
+\end{table*}

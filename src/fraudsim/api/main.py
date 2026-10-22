@@ -11,12 +11,16 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from fraudsim.api.live import LiveRun
 from fraudsim.api.schemas import (
     AnalystFeedbackRequest,
+    ConfigRequest,
+    DetectorToggleRequest,
     HealthResponse,
+    InjectRingRequest,
     MetricsResponse,
     RateRequest,
     RingDetailResponse,
@@ -26,8 +30,8 @@ from fraudsim.api.schemas import (
 )
 from fraudsim.api.state import state
 from fraudsim.metrics.exporters import prometheus_text
-from fraudsim.simulator.scenario_loader import list_scenarios
-from fraudsim.types import new_run_id
+from fraudsim.simulator.scenario_loader import list_scenarios, load_scenario
+from fraudsim.types import EvasionMode, RingType, new_run_id
 
 app = FastAPI(
     title="FraudSim API",
@@ -162,6 +166,107 @@ async def set_rate(req: RateRequest) -> RunStatusResponse:
     return await get_status()
 
 
+def _require_live() -> Any:
+    if state.live is None:
+        raise HTTPException(status_code=409, detail="No run in progress")
+    return state.live
+
+
+@app.get("/scenarios")
+async def scenarios() -> list[dict[str, Any]]:
+    """Available scenarios with their description and size."""
+    out = []
+    for name in list_scenarios():
+        cfg = load_scenario(name)
+        sim = cfg.get("simulation", {})
+        out.append(
+            {
+                "name": name,
+                "description": cfg.get("description", ""),
+                "duration_s": sim.get("duration_seconds"),
+                "users": sim.get("num_users"),
+                "rings": len(cfg.get("rings") or []),
+            }
+        )
+    return out
+
+
+@app.get("/catalog")
+async def catalog() -> dict[str, list[str]]:
+    """Ring types and evasion modes that can be injected."""
+    return {
+        "ring_types": [t.value for t in RingType],
+        "evasion_modes": [m.value for m in EvasionMode],
+    }
+
+
+@app.post("/runs/inject")
+async def inject_ring(req: InjectRingRequest) -> dict[str, Any]:
+    """Spawn a fraud ring of the given type right now."""
+    live = _require_live()
+    try:
+        ring_id = live.inject(req.ring_type, req.evasion, req.size)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    await state.broadcast_ws(
+        {
+            "type": "RING_INJECTED",
+            "ring_id": ring_id,
+            "ring_type": req.ring_type,
+            "evasion": req.evasion,
+            "size": req.size,
+        }
+    )
+    return {"ring_id": ring_id, "sim_time_s": live.snapshot()["sim_time_s"]}
+
+
+@app.get("/detectors")
+async def get_detectors() -> list[dict[str, Any]]:
+    return _require_live().detectors()
+
+
+@app.post("/detectors/{detector_type}")
+async def toggle_detector(detector_type: str, req: DetectorToggleRequest) -> list[dict[str, Any]]:
+    live = _require_live()
+    try:
+        live.set_detector(detector_type, req.enabled)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=f"Unknown detector '{detector_type}'") from e
+    return live.detectors()
+
+
+@app.get("/config")
+async def get_config() -> dict[str, Any]:
+    return _require_live().current_config()
+
+
+@app.post("/config")
+async def set_config(req: ConfigRequest) -> dict[str, Any]:
+    """Retune the alert threshold and hub weighting live (applies from the next batch)."""
+    live = _require_live()
+    try:
+        applied = live.set_config(req.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    await state.broadcast_ws({"type": "CONFIG", "applied": applied})
+    return live.current_config() | {"applied": applied}
+
+
+@app.get("/graph")
+async def graph(
+    max_users: int = 400, window_s: float = 60.0, oracle: bool = False
+) -> dict[str, Any]:
+    """Windowed graph snapshot for the dashboard (oracle=true adds the answer key)."""
+    if state.live is None:
+        return {"nodes": [], "edges": [], "shown_users": 0, "total_active_users": 0}
+    return state.live.graph_snapshot(max(10, min(max_users, 3000)), window_s, oracle)
+
+
+@app.get("/oracle")
+async def oracle() -> dict[str, Any]:
+    return _require_live().oracle()
+
+
 @app.get("/events/recent")
 async def recent_events(limit: int = 50) -> list[dict[str, Any]]:
     """Tail of the observable event stream for the current run."""
@@ -280,6 +385,19 @@ async def prometheus_metrics() -> PlainTextResponse:
     if summary:
         text += prometheus_text(summary, prefix="fraudsim_run", labels=f'run_id="{state.run_id}"')
     return PlainTextResponse(text)
+
+
+# ─── Built dashboard (web/dist), served at /ui ────────────────────────
+_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
+if _DIST.exists():
+    app.mount("/ui", StaticFiles(directory=_DIST, html=True), name="ui")
+
+
+@app.get("/", include_in_schema=False)
+async def root() -> Any:
+    if _DIST.exists():
+        return RedirectResponse("/ui/")
+    return {"message": "FraudSim API. Build the dashboard with `make web` (see /docs)."}
 
 
 @app.websocket("/ws")

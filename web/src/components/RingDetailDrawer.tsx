@@ -1,135 +1,141 @@
-import React from 'react';
-import { RingDetection } from '../types';
+import { useEffect, useRef, useState } from 'react';
+import cytoscape from 'cytoscape';
+import type { Oracle, Ring } from '../types';
+import { FEATURE_LABELS, fmt, getJSON, postJSON } from '../api';
 
-interface RingDetailDrawerProps {
-  ring: RingDetection | null;
+interface Props {
+  ringId: string;
+  oracle: Oracle | null | undefined;
+  showOracle: boolean;
   onClose: () => void;
-  onFeedback: (ringId: string, action: 'confirm' | 'dismiss') => void;
 }
 
-export const RingDetailDrawer: React.FC<RingDetailDrawerProps> = ({
-  ring,
-  onClose,
-  onFeedback,
-}) => {
-  if (!ring) return null;
+const css = (v: string) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+export function RingDetailDrawer({ ringId, oracle, showOracle, onClose }: Props) {
+  const [ring, setRing] = useState<Ring | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const evidenceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      getJSON<Ring>(`/rings/${ringId}`)
+        .then((r) => alive && setRing(r))
+        .catch((e) => alive && setError(String(e)));
+    load();
+    const id = window.setInterval(load, 2000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [ringId]);
+
+  const ev = ring?.explanation.evidence_subgraph;
+  const evKey = ev ? ev.nodes.length + ':' + ev.edges.length : '';
+  useEffect(() => {
+    if (!ev || !evidenceRef.current) return;
+    const cy = cytoscape({
+      container: evidenceRef.current,
+      userZoomingEnabled: false,
+      elements: [
+        ...ev.nodes.map((n) => ({ data: { id: n.id, kind: n.type, label: n.type === 'user' ? n.id : `${n.id} (${n.degree})` } })),
+        ...ev.edges.map((e, i) => ({ data: { id: `e${i}`, source: e.source, target: e.target, kind: e.type } })),
+      ],
+      style: [
+        { selector: 'node', style: { 'background-color': css('--fraud'), width: 12, height: 12, label: 'data(label)', 'font-size': 9, color: css('--ink'), 'text-valign': 'bottom', 'text-margin-y': 3 } },
+        { selector: 'node[kind = "device"]', style: { shape: 'round-rectangle', 'background-color': css('--device'), width: 16, height: 16 } },
+        { selector: 'node[kind = "card"]', style: { shape: 'diamond', 'background-color': css('--card'), width: 16, height: 16 } },
+        { selector: 'node[kind = "ip"]', style: { shape: 'hexagon', 'background-color': css('--ip'), width: 18, height: 18 } },
+        { selector: 'edge', style: { width: 1, 'line-color': css('--line'), 'curve-style': 'haystack' } as any },
+        { selector: 'edge[kind = "transfer"]', style: { 'line-color': css('--fraud'), 'curve-style': 'bezier', 'target-arrow-shape': 'triangle', 'target-arrow-color': css('--fraud'), 'arrow-scale': 0.6, opacity: 0.6 } as any },
+      ],
+      layout: { name: 'cose', animate: false, padding: 14 } as any,
+    });
+    return () => cy.destroy();
+  }, [evKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const send = async (action: 'confirm' | 'dismiss') => {
+    try {
+      const r = await postJSON<{ threshold_adaptation: Record<string, number> | null }>(
+        `/rings/${ringId}/feedback`, { action, analyst_id: 'dashboard' });
+      const a = r.threshold_adaptation;
+      setFeedback(a ? `${action}ed · ${a.ring_type ?? ''} threshold ${fmt(a.threshold_before)} → ${fmt(a.threshold_after)}` : `${action}ed`);
+    } catch (e) {
+      setFeedback(String(e));
+    }
+  };
+
+  const ex = ring?.explanation;
+  const contribs = Object.entries(ex?.feature_contributions ?? {}).slice(0, 8);
+  const maxAbs = Math.max(0.01, ...contribs.map(([, v]) => Math.abs(v)));
+  const verdict = oracle?.tracked[ringId];
 
   return (
-    <div
-      className="glass-panel"
-      style={{
-        position: 'absolute',
-        top: 80,
-        right: 24,
-        bottom: 24,
-        width: 380,
-        padding: 24,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 18,
-        zIndex: 40,
-        overflowY: 'auto',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <aside className="drawer" role="dialog" aria-label={`Ring ${ringId}`}>
+      <div className="drawer-h">
         <div>
-          <span className={`badge badge-${ring.status}`}>{ring.status}</span>
-          <h2 style={{ fontSize: 18, fontWeight: 700, marginTop: 6 }}>{ring.ring_id}</h2>
-        </div>
-        <button className="btn" onClick={onClose} style={{ padding: '4px 8px' }}>
-          ✕
-        </button>
-      </div>
-
-      <div style={{ background: 'rgba(0,0,0,0.25)', padding: 12, borderRadius: 8 }}>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Risk Score</div>
-        <div style={{ fontSize: 28, fontWeight: 700, color: ring.score > 0.8 ? 'var(--accent-rose)' : 'var(--accent-amber)' }}>
-          {(ring.score * 100).toFixed(0)} / 100
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>
-          Confidence: {ring.explanation?.confidence_bucket || 'High (calibrated)'}
-        </div>
-      </div>
-
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
-          Plain-English Reason
-        </div>
-        <div
-          style={{
-            fontSize: 13,
-            lineHeight: 1.5,
-            background: 'rgba(255,255,255,0.03)',
-            padding: 12,
-            borderRadius: 8,
-            border: '1px solid var(--border-subtle)',
-          }}
-        >
-          {ring.explanation?.plain_english ||
-            `${ring.members.length} users share infrastructure with high hub-adjusted density.`}
-        </div>
-      </div>
-
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
-          Members ({ring.members.length})
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {ring.members.map((m) => (
-            <span
-              key={m}
-              style={{
-                background: 'rgba(99, 102, 241, 0.15)',
-                color: '#a5b4fc',
-                padding: '3px 8px',
-                borderRadius: 4,
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-              }}
-            >
-              {m}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {ring.explanation?.counterfactual && (
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
-            Counterfactual Explanation
+          <div className="muted small">ring {ringId}{ring ? ` · ${ring.ring_type.replace(/_/g, ' ')} · ${ring.members.length} members` : ''}</div>
+          <div className="risk-big" style={{ color: ex?.alerted_at ? 'var(--alert)' : 'var(--warn)' }}>
+            {ex?.risk != null ? fmt(ex.risk) : fmt(ring?.score)}
           </div>
-          <div
-            style={{
-              fontSize: 12,
-              lineHeight: 1.4,
-              color: 'var(--accent-cyan)',
-              background: 'rgba(6, 182, 212, 0.08)',
-              padding: 10,
-              borderRadius: 6,
-              border: '1px solid rgba(6, 182, 212, 0.2)',
-            }}
-          >
-            {ring.explanation.counterfactual}
+          <div className="muted small">
+            {ex?.risk != null ? `calibrated risk · threshold ${fmt(ex.threshold)} · ${ex.calibration_bucket ?? ''}` : 'detector score (no risk model)'}
           </div>
         </div>
+        <button className="btn" onClick={onClose} aria-label="Close">✕</button>
+      </div>
+      {error && <div className="error">{error}</div>}
+      {ring && (
+        <>
+          <div className="badges">
+            <span className={`pill ${ex?.alerted_at ? 'alert' : ring.status}`}>{ex?.alerted_at ? 'alert' : ring.status}</span>
+            {(ex?.detectors ?? []).map((d) => <span key={d} className="pill det">{d.replace('_', ' ')}</span>)}
+            {showOracle && verdict && (
+              <span className={`tag ${verdict.verdict === 'true' ? 'ok' : 'fp'}`}>
+                {verdict.verdict === 'true' ? `true ring ${verdict.true_ring} (J ${fmt(verdict.jaccard)})` : 'false alarm'}
+              </span>
+            )}
+          </div>
+          <h4>Why it was flagged</h4>
+          <p className="reason">{ex?.reason_text ?? 'No explanation yet.'}</p>
+          {ex?.counterfactual && <div className="cf"><b>Counterfactual.</b> {ex.counterfactual}</div>}
+          {contribs.length > 0 && (
+            <>
+              <h4>What moved the score</h4>
+              <div className="bars">
+                {contribs.map(([k, v]) => {
+                  const w = (Math.abs(v) / maxAbs) * 50;
+                  return (
+                    <div className="row" key={k}>
+                      <span title={k}>{FEATURE_LABELS[k] ?? k}</span>
+                      <span className="track"><span className="mid" />
+                        <span className="b" style={{ left: `${v >= 0 ? 50 : 50 - w}%`, width: `${w}%`, background: v >= 0 ? 'var(--fraud)' : 'var(--ok)' }} />
+                      </span>
+                      <span className="v">{v >= 0 ? '+' : ''}{fmt(v)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          <h4>Evidence subgraph</h4>
+          <div ref={evidenceRef} className="evidence" />
+          <h4>Timeline</h4>
+          <ul className="timeline">
+            {((ring.explanation as any).history ?? []).slice(-12).map((h: any, i: number) => (
+              <li key={i}><span className="seq">{String(h.ts).slice(11, 19)}</span> {h.change}{h.risk != null ? ` · risk ${fmt(h.risk)}` : ''}{h.added ? ` +${h.added.length}` : ''}{h.removed ? ` −${h.removed.length}` : ''}</li>
+            ))}
+          </ul>
+          <div className="actions">
+            <button className="btn primary" onClick={() => send('confirm')}>Confirm fraud</button>
+            <button className="btn" onClick={() => send('dismiss')}>Dismiss</button>
+          </div>
+          {feedback && <div className="muted small">{feedback} (logged to the audit trail)</div>}
+          <div className="muted small members">members: {ring.members.join(', ')}</div>
+        </>
       )}
-
-      <div style={{ marginTop: 'auto', display: 'flex', gap: 10, paddingTop: 12 }}>
-        <button
-          className="btn btn-primary"
-          style={{ flex: 1, justifyContent: 'center' }}
-          onClick={() => onFeedback(ring.ring_id, 'confirm')}
-        >
-          ✓ Confirm Ring
-        </button>
-        <button
-          className="btn btn-danger"
-          style={{ flex: 1, justifyContent: 'center' }}
-          onClick={() => onFeedback(ring.ring_id, 'dismiss')}
-        >
-          ✕ Dismiss
-        </button>
-      </div>
-    </div>
+    </aside>
   );
-};
+}

@@ -181,3 +181,42 @@ def test_live_run_is_logged_audited_and_replayable(client: TestClient, tmp_path:
     # boundaries, so the detections must still be identical.
     result = replay_run(run_dir)
     assert result.identical, result.differences
+
+
+def test_dashboard_controls(client: TestClient):
+    names = {s["name"] for s in client.get("/scenarios").json()}
+    assert {"baseline", "demo_story", "adversarial"} <= names
+    cat = client.get("/catalog").json()
+    assert "money_cycle" in cat["ring_types"] and "hub_hiding" in cat["evasion_modes"]
+    assert client.post("/runs/inject", json={"ring_type": "shared_ip"}).status_code == 409
+
+    client.post("/runs/start", json={"scenario": "hub_heavy", "seed": 2, "speed_multiplier": 0})
+    inj = client.post(
+        "/runs/inject", json={"ring_type": "money_cycle", "evasion": "none", "size": 4}
+    )
+    assert inj.status_code == 200 and inj.json()["ring_id"].startswith("inj_")
+    assert client.post("/runs/inject", json={"ring_type": "teleport"}).status_code == 422
+
+    dets = client.post("/detectors/community", json={"enabled": False}).json()
+    assert {d["type"]: d["enabled"] for d in dets}["community"] is False
+    assert client.post("/detectors/nope", json={"enabled": False}).status_code == 404
+
+    cfg = client.post(
+        "/config", json={"alert_threshold": 0.7, "hub_weight_method": "adamic_adar"}
+    ).json()
+    assert cfg["alert_threshold"] == 0.7 and cfg["hub_weight_method"] == "adamic_adar"
+    assert client.post("/config", json={"alert_threshold": 1.5}).status_code == 422
+
+    for _ in range(1200):  # up to 60 s: the run takes ~15 s and longer on a busy machine
+        if client.get("/status").json()["status"] == "finished":
+            break
+        time.sleep(0.05)
+    time.sleep(0.6)
+    g = client.get("/graph", params={"oracle": True, "max_users": 100}).json()
+    assert 0 < g["shown_users"] <= g["total_active_users"]
+    ids = {n["id"] for n in g["nodes"]}
+    assert all(e["source"] in ids and e["target"] in ids for e in g["edges"])
+    assert any(n.get("hub") for n in g["nodes"])
+    o = g["oracle"]
+    assert any(r["true_ring"].startswith("inj_") for r in o["true_rings"])
+    assert all(v["verdict"] in ("true", "false") for v in o["tracked"].values())

@@ -76,6 +76,9 @@ class EvalConfig:
     review_cost_min: float = 15.0  # analyst minutes per false alert (cost proxy)
     miss_cost_min: float = 240.0  # cost proxy per missed ring (investigation later)
     k_values: tuple[int, ...] = (5, 10, 20)
+    # Restrict evaluation to these true ring types (None = all). Flags that match a
+    # true ring of another type are then out of scope: neither correct nor false.
+    ring_types: tuple[str, ...] | None = None
 
 
 @dataclass(slots=True)
@@ -165,6 +168,18 @@ def evaluate_run(
     flag_change = "alert" if scored else "confirmed"
     flags = collect_flags(reports, flag_change)
     truth = true_rings(ledger)
+    if cfg.ring_types is not None:
+        out_of_scope = [all_members(r) for r in truth if r.ring_type.value not in cfg.ring_types]
+        truth = [r for r in truth if r.ring_type.value in cfg.ring_types]
+        in_scope = [all_members(r) for r in truth]
+
+        def _keep(f: Flag) -> bool:
+            fm = set(f.members)
+            hits_out = any(jaccard(fm, m) >= cfg.jaccard for m in out_of_scope)
+            hits_in = any(jaccard(fm, m) >= cfg.jaccard for m in in_scope)
+            return hits_in or not hits_out
+
+        flags = [f for f in flags if _keep(f)]
     members = {r.ring_id: all_members(r) for r in truth}
     fraud_users = set().union(*members.values()) if members else set()
     matched = match_flags(flags, truth, cfg.jaccard)

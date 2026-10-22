@@ -1,0 +1,23 @@
+\begin{abstract}
+Fraud rings share devices, cards and network addresses and move money among
+themselves, which graph queries can expose. Two obstacles appear on live
+transaction streams. Legitimate shared infrastructure such as office gateways,
+carrier address translation and kiosks links many unrelated accounts, and the
+usual remedy, a hard degree cap, hides any ring that shares a busy attribute.
+Whole-graph queries re-run on a timer also cost more as the graph grows. We
+replace the cap with a continuous hub-aware weight with time decay, detect
+incrementally on the neighbourhood touched by each micro-batch, and pass
+candidate rings through a calibrated scorer that explains every alert. On a
+deterministic simulator with ring-level ground truth and five evasion
+strategies, over \EScenarios{} scenarios and \ESeeds{} test seeds, the method
+reaches a ring F1 score of \EPropF{} against \ECapTenF{} for the original
+degree-capped Cypher rules and \ELouvainF{} for Louvain communities, and every
+difference is significant in a paired Wilcoxon signed-rank test. Hub weighting
+extends the reachable recall on shared-attribute rings from \FrCapSMaxR{} to
+\FrHubSMaxR{}, though not at higher precision everywhere, and the scorer
+contributes most of the precision. Incremental detection flags the same rings
+as full recomputation and, with \ScaleMaxUsers{} users, takes \ScaleIncMs{} ms
+per batch against \ScaleFullMs{} ms. Rings that rotate identities or act slowly
+evade every method we tested. All positive results are synthetic, and we state
+what the public anti-money laundering datasets we could use can and cannot test.
+\end{abstract}

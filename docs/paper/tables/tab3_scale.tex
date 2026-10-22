@@ -1,0 +1,19 @@
+% generated from results/e4_scale/results.csv (sha256 143ac0351756a459, 30 rows)
+\begin{table*}[t]
+\centering
+\caption{Per-batch detection latency (median, ms; mean $\pm$ 95\% CI over 3 seeds)
+and users examined per batch, incremental vs full recomputation, in-memory store.}
+\label{tab:scale}
+\begin{tabular}{rccccc}
+\toprule
+& \multicolumn{2}{c}{Incremental} & \multicolumn{2}{c}{Full} & \\
+Users & Region & ms & Region & ms & Speed-up \\
+\midrule
+1,000 & 976 & 211.0 $\pm$ 142.9 & 1015 & 159.7 $\pm$ 64.4 & 0.8$\times$ \\
+5,000 & 1878 & 177.8 $\pm$ 46.7 & 5016 & 589.8 $\pm$ 67.3 & 3.3$\times$ \\
+20,000 & 1324 & 54.6 $\pm$ 37.1 & 20010 & 2683.7 $\pm$ 1062.0 & 49.2$\times$ \\
+50,000 & 1110 & 38.5 $\pm$ 38.2 & 50011 & 6181.6 $\pm$ 2576.4 & 160.4$\times$ \\
+100,000 & 827 & 36.1 $\pm$ 44.2 & 100013 & 22500.5 $\pm$ 10278.5 & 623.0$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table*}

@@ -3,14 +3,20 @@
 
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
-\usepackage{algorithmic}
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{booktabs}
-% Placeholder marker: every number must come from a real run (see master_prompt.md).
-\newcommand{\TBD}[1]{\textcolor{red}{[TBD: #1]}}
+\usepackage{multirow}
 \usepackage{hyperref}
+
+% Every number in the text comes from tables/numbers.tex, generated from
+% results/*/results.csv by `make tables` (fraudsim.experiments.latex_export).
+\input{tables/numbers.tex}
+% Claims that still need a source. Never replace with a reference that has not been read.
+\newcommand{\TODOcite}[1]{\textcolor{red}{[cite: #1]}}
+\newcommand{\TBD}[1]{\textcolor{red}{[TBD: #1]}}
+\newcommand{\figpath}{figures}
 
 \begin{document}
 
@@ -31,87 +37,13 @@ Amaravati, India \\
 
 \maketitle
 
-\begin{abstract}
-Graph-based fraud detection systems in financial networks frequently suffer from severe false positive rates caused by high-degree legitimate infrastructure hubs (such as office Wi-Fi gateways, corporate VPNs, and family devices). Conventional approaches rely on hard degree caps to prune busy nodes, which inadvertently creates an exploit vector where adversarial fraud rings conceal their operations behind high-degree nodes. Furthermore, full-graph periodic recomputation incurs prohibitive latency on large-scale streaming graphs. In this paper, we propose a hub-aware incremental fraud ring detection framework for streaming property graphs. First, we replace rigid degree cutoffs with continuous inverse-degree and temporal decay edge weighting, enabling the recovery of evasive rings behind busy infrastructure while suppressing benign hub noise. Second, we introduce an incremental micro-batch detection engine that evaluates only the touched $k$-hop dirty neighborhoods, and compare its detection latency against full-graph queries \TBD{latency figures pending experiment runs}. Third, we couple rule-based candidate extraction with a calibrated two-stage risk scoring model providing ranked feature attributions, evidence subgraphs, and counterfactual explanations. Extensive evaluations across synthetic and adversarial scenarios evaluate precision, recall and query latency against static Cypher and community-detection baselines \TBD{headline numbers pending experiment runs}.
-\end{abstract}
+\input{sections/abstract.tex}
 
 \begin{IEEEkeywords}
-Fraud Detection, Property Graphs, Neo4j, Incremental Graph Algorithms, Hub-Aware Weighting, Explainable AI.
+fraud rings, property graphs, streaming graph analytics, incremental detection, hub-aware weighting, explainability
 \end{IEEEkeywords}
 
-\section{Introduction}
-Modern financial fraud rings increasingly operate through coordinated networks of synthetic identities, shared device hardware, rotating IP addresses, and structured transaction cycles (smurfing). While graph databases such as Neo4j provide expressive query interfaces for multi-hop relationship traversal, real-world deployment faces two critical bottlenecks:
-\begin{enumerate}
-    \item \textbf{The Hub Dilemma (C1):} Legitimate shared infrastructure (e.g., office networks with hundreds of legitimate users sharing an IP) causes query combinatorial explosion and false alarms. Hard degree caps filter high-degree nodes, but allow sophisticated fraudsters to hide deliberately within hubs.
-    \item \textbf{Latency in Streaming Environments (C2):} Financial transaction graphs evolve continuously. Re-running global queries periodically yields high alert delay and unacceptable computational overhead.
-\end{enumerate}
-
-To address these challenges, we present:
-\begin{itemize}
-    \item Continuous hub-aware edge weighting combining inverse-degree logarithm scaling and time decay;
-    \item Micro-batch incremental dirty-set neighborhood evaluation;
-    \item Explainable fraud ring flags with feature importance and counterfactual reasoning (C3);
-    \item Robustness evaluation under adversarial evasion strategies (C4).
-\end{itemize}
-
-\section{Related Work}
-% TODO: Add formal citations for graph fraud detection, CamCube, heterogeneous graph neural networks, and incremental sub-graph mining.
-Graph-based anti-money laundering (AML) and syndicate detection typically employ pattern matching (Cypher, Gremlin), graph community detection (Louvain, Infomap), or graph neural networks (GNNs). Prior work either ignores dynamic streaming updates or relies on static degree thresholds.
-
-\section{Methodology}
-\subsection{Property Graph Schema}
-Our schema models users, shared attributes, and directed transactions:
-$(u:\text{User})-[:\text{USED\_DEVICE}]\to(d:\text{Device})$,
-$(u:\text{User})-[:\text{HAS\_CARD}]\to(c:\text{CreditCard})$,
-$(u:\text{User})-[:\text{LOGGED\_IN\_FROM}]\to(ip:\text{IPAddress})$, and
-$(u_1)-[:\text{PERFORMED}]\to(t:\text{Transaction})-[:\text{SENT\_TO}]\to(u_2)$.
-
-\subsection{Continuous Hub-Aware Edge Weighting}
-For users $u_i, u_j$ sharing an attribute $a$, the edge weight is computed as:
-\begin{equation}
-w(u_i, u_j) = \frac{1}{\log(1 + \deg(a))} \cdot \exp(-\lambda \cdot \Delta t)
-\end{equation}
-where $\deg(a)$ is the attribute degree and $\Delta t$ is the elapsed time since the interaction.
-
-\subsection{Incremental Dirty-Set Detection Engine}
-When a batch of events $\mathcal{E}$ arrives, we compute the touched node set $\mathcal{V}_{\text{dirty}}$ and expand to its $k$-hop neighborhood. Detectors re-evaluate only this bounded subgraph, bounding per-event processing latency.
-
-\subsection{Two-Stage Calibrated Scoring and Explainability}
-Candidate rings are converted into feature vectors and scored using a calibrated model. Explanations include SHAP/coefficient rankings, minimal counterfactual edits, and evidence subgraphs.
-
-\section{Experimental Setup}
-\subsection{Simulation and Scenarios}
-We evaluate on synthetic streaming scenarios: Baseline, High-Noise, Hub-Heavy, Adversarial Evasion, Scale-Sweep ($10^3$ to $10^6$ nodes), and Concept Drift.
-
-\subsection{Baselines}
-We compare against: (1) Static Cypher with degree cap=100; (2) Static Cypher with degree cap=10; (3) GDS Louvain Community Detection; (4) Plain Connected Components.
-
-\section{Results}
-\input{tables/tab1_baselines.tex}
-
-\subsection{RQ1: Detection Accuracy vs Baselines}
-Table~\ref{tab:baseline_comparison} presents accuracy and latency across randomized seeds. \TBD{Discussion to be written from Milestone 8 run outputs.}
-
-\subsection{RQ2: Scalability and Latency}
-\TBD{Latency scaling of incremental dirty-set detection versus full-graph recomputation, from Milestone 8 run outputs.}
-
-\subsection{RQ3: Robustness to Evasion}
-\TBD{Detection under adaptive adversary strategies (hub-hiding, low-and-slow), from Milestone 8 run outputs.}
-
-\subsection{RQ5: Ablation Study}
-\input{tables/tab2_ablation.tex}
-Table~\ref{tab:ablation} reports the impact of removing individual components. \TBD{Discussion to be written from Milestone 8 run outputs.}
-
-\section{Threats to Validity and Limitations}
-\subsection{Simulator Realism}
-Synthetic generators may not capture all real-world banking nuances.
-\subsection{Synthetic-Label Bias}
-Ground truth is defined according to specified scenario topologies.
-\subsection{Hub-Hiding Recall Boundary}
-Extremely high degree hubs ($>10^5$) with minimal internal ring density approach theoretical limits of topological separability.
-
-\section{Conclusion}
-We presented a hub-aware incremental fraud detection architecture for streaming property graphs. By bridging continuous attribute weighting, incremental graph traversal, and transparent explainability, our approach delivers both high detection fidelity and real-time execution speeds.
+\input{sections/body.tex}
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}

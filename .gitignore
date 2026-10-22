@@ -3,8 +3,29 @@ __pycache__/
 .env
 .DS_Store
 runs/
-results/
+results/*
+!results/e[0-9]*_*/
+!results/tuning/
+!results/public/
+!results/public/runs/
 .pytest_cache/
 .ruff_cache/
 demo/
 models/*.joblib.tmp
+.claude/
+web/node_modules/
+web/dist/
+
+# Public datasets (downloaded, never committed)
+data/
+
+# LaTeX build files (docs/paper/paper.pdf is kept)
+docs/paper/*.aux
+docs/paper/*.log
+docs/paper/*.bbl
+docs/paper/*.blg
+docs/paper/*.out
+
+# Reference papers and template supplied by the authors (publisher PDFs, not redistributed)
+papers_nosql/
+images/papers_nosql/

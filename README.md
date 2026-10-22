@@ -23,7 +23,32 @@ It is now a streaming research system with these parts:
 `master_prompt.md` is the specification. Milestone status is
 [at the bottom](#milestone-status).
 
-## Demo
+## Live dashboard
+
+```bash
+pip install -e ".[dev]"
+make demo              # builds web/ (Node 18+) and serves it with the API -> http://localhost:8000/ui/
+```
+
+The dashboard runs any scenario live: the transaction graph grows as events
+arrive, rings form as red circles of transfers, and alerts pop into a queue
+ranked by calibrated risk. Click a ring to see:
+- why it was flagged;
+- its feature contributions, counterfactual, evidence subgraph and timeline;
+- confirm/dismiss buttons, which adapt the threshold and are audited.
+
+From the controls you can inject any ring type or evasion on demand, switch
+detectors, and retune the alert threshold and hub weighting live. The
+*Oracle view* overlays the answer key: correct flags, false alarms and missed
+rings. Details are in [`docs/dashboard.md`](docs/dashboard.md).
+
+| Live run (demo_story, seed 7) | Oracle view |
+|---|---|
+| ![Dashboard](docs/images/dashboard_live.jpg) | ![Oracle view](docs/images/dashboard_oracle.jpg) |
+
+![Ring drawer](docs/images/dashboard_oracle_drawer.jpg)
+
+## Offline demo (story replay)
 
 ```bash
 pip install -e ".[dev]"
@@ -57,8 +82,52 @@ risk model trained on seeds 101–110. Over the same 2,512 events:
 
 This is a single demonstration run. The cap rules reach the office ring only
 through a coincidental 3-cycle among its members; the shared-IP query skips it
-because of the cap. Multi-seed results for the paper come from the experiment
-harness (Milestone 8).
+because of the cap. Multi-seed results are below.
+
+## Results (Milestone 8)
+
+All numbers come from `results/*/results.csv` (committed), produced by
+`scripts/run_paper_experiments.py` on test seeds 1001+; thresholds were chosen
+on separate validation seeds (`configs/tuned.json`). Every method sees the
+identical event stream per scenario and seed. Commands: [REPRODUCE.md](REPRODUCE.md).
+
+| 5 scenarios x 10 seeds | Ring precision | Ring recall | Ring F1 (mean, 95% CI) |
+|---|---|---|---|
+| **Hub-aware incremental (proposed)** | 0.76 | 0.74 | **0.73 ± 0.05** |
+| Proposed, a-priori thresholds | 0.73 | 0.69 | 0.68 ± 0.05 |
+| Louvain communities | 0.39 | 0.33 | 0.29 ± 0.06 |
+| Static Cypher, cap 10 | 0.14 | 0.61 | 0.21 ± 0.05 |
+| Static Cypher, cap 100 | 0.12 | 0.61 | 0.19 ± 0.05 |
+| Connected components | - | 0.00 | 0.00 |
+
+Every baseline is below the proposed method (paired Wilcoxon p < 0.001).
+
+<p align="center">
+  <img src="docs/paper/figures/fig1_pr_frontier.png" width="45%" alt="Precision/recall: degree cap vs hub weighting"/>
+  <img src="docs/paper/figures/fig2_latency_scaling.png" width="45%" alt="Latency vs graph size"/>
+</p>
+
+- **Degree cap vs hub weighting** (left, shared-attribute rings only): no
+  degree cap gets past recall 0.53 even with the scorer, while hub weighting
+  with the scorer reaches 0.81. At low recall the cap with the scorer is the
+  more precise, so the gain is reach, not dominance.
+- **Scale** (right): full recomputation grows from 0.16 s per batch at 1,000
+  users to 22.5 s at 100,000. The incremental dirty region stays below about
+  2,000 users, so a batch takes 36 ms at 100,000 users. 10^6 users did not fit
+  the 7.7 GB test laptop.
+- **Ablations**: removing the calibrated scorer (F1 0.72 -> 0.39) or the
+  hub-aware detector (-> 0.36) costs most. Incremental and full recomputation
+  flag identical rings.
+- **Limits**: rings that rotate identities or act low-and-slow evade every
+  method tested. The positive results are synthetic.
+- **Public data** (transaction rules only, no shared attributes in any public set):
+  on a 4-day AMLworld slice the rules match none of the 55 laundering attempts
+  inside it (account precision 0.03). Elliptic (acyclic, no amounts) and the
+  AMLSim samples (cycles not time-ordered) give no flags. Details:
+  [docs/datasets.md](docs/datasets.md).
+
+Paper: [`docs/paper/paper.pdf`](docs/paper/paper.pdf) (IEEE conference
+template; tables and the numbers in the text are generated, see `make tables`).
 
 ## Architecture
 
@@ -98,11 +167,15 @@ flowchart LR
 | `src/fraudsim/logging/` | Run logs, audit trail, replay |
 | `src/fraudsim/api/` | FastAPI app, live run, WebSocket |
 | `src/fraudsim/demo/` | `demo-story` page builder |
+| `src/fraudsim/experiments/` | Experiment harness, threshold tuning, suite (E1-E7), statistics, figures, LaTeX tables |
+| `src/fraudsim/datasets/` | Loaders for IBM AMLworld, Elliptic, PaySim |
+| `web/` | Live dashboard (React, Vite, TypeScript, Cytoscape.js, Recharts) |
 | `configs/scenarios/` | baseline, high_noise, hub_heavy, adversarial, scale_sweep, drift, demo_story |
 
 Design notes are in [`docs/simulator.md`](docs/simulator.md),
 [`docs/detection.md`](docs/detection.md), [`docs/scoring.md`](docs/scoring.md),
-[`docs/metrics.md`](docs/metrics.md) and [`docs/logging.md`](docs/logging.md).
+[`docs/metrics.md`](docs/metrics.md), [`docs/logging.md`](docs/logging.md) and
+[`docs/dashboard.md`](docs/dashboard.md).
 
 ## Quick start
 
@@ -123,7 +196,7 @@ fraudsim audit-verify runs/<run_id>                          # check the audit h
 fraudsim compare-latency --scenario scale_sweep --seed 42    # incremental vs full recompute
 fraudsim train-scorer --model logistic_regression            # (re)train the risk model
 fraudsim run --scenario baseline --speed 10                  # live JSON event stream
-fraudsim api                                                  # FastAPI on :8000 (docs at /docs)
+fraudsim api                                                  # FastAPI on :8000, dashboard at /ui (after `make web`)
 ```
 
 The commands above assume `pip install -e .`. Without installing, use
@@ -145,8 +218,9 @@ pytest -m integration              # needs `docker compose up -d neo4j redis`
 make lint
 ```
 
-The latest reports are in `docs/reports/`; Milestone 6 has 158 passing tests,
-including the Neo4j/GDS and Redis integration tests.
+The latest reports are in `docs/reports/`; Milestone 7 has 159 passing tests,
+including the Neo4j/GDS and Redis integration tests, and the dashboard builds
+under strict TypeScript (`make web`).
 
 ## Milestone status
 
@@ -158,14 +232,13 @@ including the Neo4j/GDS and Redis integration tests.
 | M4 Scoring and explainability (+ `demo-story`) | done |
 | M5 Metrics | done |
 | M6 Logging, audit and replay | done |
-| M7 Live React dashboard | next |
-| M8 Experiment harness and paper artefacts | planned. `docs/paper` tables are placeholders until real runs fill them |
+| M7 Live React dashboard | done |
+| M8 Experiments, statistics, paper, public-data loaders | done (see Results above and `docs/paper/`) |
 | M9 Quality bar (CI, README, reproduction guide) | planned |
 
 Known open items:
-- `src/fraudsim/experiments/latex_export.py` and `plotting.py` still embed
-  hard-coded numbers. They will be replaced with run-derived values in M8.
-- `web/` holds the M1 dashboard skeleton, which is rebuilt in M7.
+- Paper: citations marked `[cite: ...]` still need sources; bibliography entries must be checked before submission.
+- Public data has no shared-attribute links, so hub-aware weighting is untested on real data (see [docs/datasets.md](docs/datasets.md)).
 
 ---
 

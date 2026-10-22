@@ -25,9 +25,11 @@ def _results(results_dir: Path, experiment: str) -> tuple[pd.DataFrame, str] | N
     if not path.exists():
         print(f"[tables] skip {experiment}: {path} not found")
         return None
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+    # Line endings are normalised so the digest is the same on Windows (CRLF
+    # checkouts) and Linux (LF).
+    digest = hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()[:16]
     df = pd.read_csv(path)
-    return df, f"% generated from {path.as_posix()} (sha256 {digest}, {len(df)} rows)\n"
+    return df, f"% generated from {path.as_posix()} (sha256 of LF text {digest}, {len(df)} rows)\n"
 
 
 def _write(output_dir: Path, name: str, body: str) -> Path:

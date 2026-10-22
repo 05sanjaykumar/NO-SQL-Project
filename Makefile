@@ -1,4 +1,4 @@
-.PHONY: help install dev lint test test-unit test-integration simulate simulate-all train-scorer demo-story web web-dev api experiment experiment-all figures tables paper demo clean
+.PHONY: help install dev lint test test-unit test-integration simulate simulate-all train-scorer demo-story web web-dev api experiment experiment-all figures tables paper demo demo-docker clean
 
 PYTHON ?= python
 DOCKER ?= docker compose
@@ -36,8 +36,8 @@ logs: ## Tail service logs
 # ─── Quality ──────────────────────────────────────────────────────────
 
 lint: ## Run ruff linter and formatter check
-	$(PYTHON) -m ruff check src/ tests/
-	$(PYTHON) -m ruff format --check src/ tests/
+	$(PYTHON) -m ruff check src/ tests/ scripts/
+	$(PYTHON) -m ruff format --check src/ tests/ scripts/
 
 format: ## Auto-format code
 	$(PYTHON) -m ruff check --fix src/ tests/
@@ -112,6 +112,9 @@ web-dev: ## Dashboard dev server with hot reload on :5173 (run `make api` too)
 
 api: ## Run the FastAPI backend (dashboard at http://localhost:8000/ui/)
 	$(PYTHON) -m fraudsim.cli api --port 8000
+
+demo-docker: ## Everything in containers: Neo4j, Redis and the API + dashboard on http://localhost:8000/ui/
+	docker compose --profile app up --build
 
 demo: web ## Build the dashboard and serve it with the API (open http://localhost:8000/ui/)
 	@echo ""

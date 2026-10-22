@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hidden Ring Replay</title>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1f23; --muted: #646a73; --line: #e2e3e0;
+  --fraud: #d1453b; --fraud-soft: #f6d9d6; --ok: #2f8f5b; --ok-soft: #d8efe2;
+  --warn: #c98a12; --warn-soft: #f7ead0; --hub: #3d6fd6; --benign: #a9adb3; --attr: #7a5cc7; --accent: #1d1f23;
+  --flag: #e07b16;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171a; --panel: #1d2024; --ink: #eceef0; --muted: #9aa1aa; --line: #2e3238;
+    --fraud: #ef6a5f; --fraud-soft: #3b2220; --ok: #4fc283; --ok-soft: #1c3226;
+    --warn: #e5a93a; --warn-soft: #3a2f1a; --hub: #6e98ef; --benign: #5d636b; --attr: #a38bec; --accent: #eceef0;
+    --flag: #f29a3c;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 60px; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; margin: 34px 0 12px; }
+.lede { color: var(--muted); max-width: 860px; margin: 0; }
+.prov { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
+code { color: var(--ink); background: var(--panel); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+button { font: inherit; }
+/* Replay */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; margin-top: 18px; }
+@media (max-width: 980px) { .stage { grid-template-columns: 1fr; } }
+.player { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.bar .grow { flex: 1 1 200px; display: flex; align-items: center; gap: 10px; min-width: 200px; }
+.btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; font-size: 13px; }
+.btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); min-width: 78px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; color: var(--ink); padding: 6px 10px; cursor: pointer; font-size: 13px; }
+.seg button.on { background: var(--accent); color: var(--bg); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.clock { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.switch { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; user-select: none; }
+#graph { width: 100%; height: 600px; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); padding: 8px 12px 12px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.side { display: flex; flex-direction: column; gap: 12px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.panel h3 { margin: 0 0 8px; font-size: 14px; }
+.counter { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 12px; font-size: 13px; align-items: center; }
+.counter .h { color: var(--muted); font-size: 11.5px; }
+.counter .n { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; min-width: 38px; }
+.counter .row-on { font-weight: 600; }
+.good { color: var(--ok); } .bad { color: var(--fraud); } .amber { color: var(--warn); }
+.feed { list-style: none; margin: 0; padding: 0; font-size: 12.5px; max-height: 220px; overflow: auto; }
+.feed li { padding: 5px 0; border-top: 1px solid var(--line); display: flex; gap: 8px; }
+.feed .t { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 44px; }
+.pop { position: relative; border: 1px solid var(--fraud); box-shadow: 0 0 0 3px var(--fraud-soft); animation: pop .35s ease-out; }
+@keyframes pop { from { transform: scale(.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.pop .risk { font-size: 30px; font-weight: 700; color: var(--fraud); line-height: 1; }
+.pop .reason { font-size: 13px; margin: 8px 0; }
+.pop .cf { font-size: 12.5px; background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+.bars .row { display: grid; grid-template-columns: 1fr 90px 46px; gap: 6px; align-items: center; font-size: 11.5px; margin: 3px 0; }
+.bars .track { position: relative; height: 10px; background: var(--bg); border-radius: 3px; }
+.bars .mid { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--line); }
+.bars .b { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.bars .v { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.empty { color: var(--muted); font-size: 13px; }
+/* Results */
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) { .cards { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.card.system { box-shadow: 0 0 0 1px var(--accent) inset; border-color: var(--accent); }
+.card h3 { margin: 0; font-size: 15px; }
+.card .sub { color: var(--muted); font-size: 12.5px; margin: 4px 0 12px; min-height: 36px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.stat { border-radius: 8px; padding: 8px; text-align: center; background: var(--bg); }
+.stat b { display: block; font-size: 22px; line-height: 1.1; }
+.stat span { font-size: 11.5px; color: var(--muted); }
+.stat.good b { color: var(--ok); } .stat.bad b { color: var(--fraud); }
+.rings { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+.rings li { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); }
+.tag { font-size: 11.5px; padding: 1px 7px; border-radius: 99px; white-space: nowrap; }
+.tag.caught { background: var(--ok-soft); color: var(--ok); }
+.tag.missed { background: var(--fraud-soft); color: var(--fraud); }
+.note { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+.spot { display: grid; grid-template-columns: 1.15fr 1fr; gap: 14px; }
+@media (max-width: 900px) { .spot { grid-template-columns: 1fr; } }
+.spot .riskbig { font-size: 40px; font-weight: 700; line-height: 1; }
+.cfbox { margin-top: 12px; padding: 10px 12px; background: var(--bg); border-radius: 8px; font-size: 13.5px; }
+.bigbars .row { display: grid; grid-template-columns: 220px 1fr 54px; gap: 8px; align-items: center; font-size: 12.5px; margin: 5px 0; }
+@media (max-width: 600px) { .bigbars .row { grid-template-columns: 1fr 1fr 48px; } }
+#timeline { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; display: block; }
+.tooltip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px;
+  padding: 5px 8px; border-radius: 6px; opacity: 0; transition: opacity .1s; max-width: 300px; z-index: 5; }
+footer { margin-top: 36px; font-size: 12.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>A fraud ring hiding behind the office wifi</h1>
+  <p class="lede" id="lede"></p>
+  <div class="prov" id="prov"></div>
+
+  <div class="stage">
+    <div class="player">
+      <div class="bar">
+        <button class="btn primary" id="play">▶ Play</button>
+        <div class="seg" id="speed"></div>
+        <div class="grow"><input type="range" id="scrub" min="0" step="0.1" aria-label="Simulated time"><span class="clock" id="clock"></span></div>
+      </div>
+      <div class="bar">
+        <span style="font-size:13px;color:var(--muted)">Detector</span>
+        <div class="seg" id="det"></div>
+        <label class="switch"><input type="checkbox" id="key"> Answer key</label>
+      </div>
+      <svg id="graph" role="img" aria-label="Animated replay of the transaction graph"></svg>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="side">
+      <div class="panel"><h3>Running score</h3><div class="counter" id="counter"></div>
+        <div class="note" style="margin-top:8px">Caught = a flag matching a planted ring (Jaccard ≥ 0.5). False = a flag matching none.</div></div>
+      <div class="panel" id="popup"><h3>Latest alert</h3><div class="empty">Alerts from the selected detector appear here, with the explanation recorded at the moment they fired.</div></div>
+      <div class="panel"><h3>Flags so far</h3><ul class="feed" id="feed"></ul></div>
+    </div>
+  </div>
+
+  <h2>Final result of this run</h2>
+  <div class="cards" id="cards"></div>
+
+  <h2>Why the hidden ring was flagged</h2>
+  <div id="spot"></div>
+
+  <h2>When each ring was caught</h2>
+  <svg id="timeline" role="img" aria-label="Timeline of ring activation and detection"></svg>
+
+  <footer id="footer"></footer>
+</main>
+<div class="tooltip" id="tip"></div>
+<script>
+const DATA = /*__DATA__*/null;
+const $ = (id) => document.getElementById(id);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = (x, d = 2) => (x === null || x === undefined) ? "–" : Number(x).toFixed(d);
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (parent) parent.appendChild(e); return e; };
+const tip = $("tip");
+const showTip = (ev, html) => { tip.innerHTML = html; tip.style.opacity = 1;
+  tip.style.left = Math.min(ev.clientX + 12, innerWidth - 310) + "px"; tip.style.top = (ev.clientY + 12) + "px"; };
+const hideTip = () => { tip.style.opacity = 0; };
+
+const M = DATA.meta, T = DATA.truth, A = DATA.approaches, S = DATA.spotlight, G = DATA.graph;
+const hidden = T.find((t) => t.evasion === "hub_hiding") || T[0];
+const truthById = Object.fromEntries(T.map((t) => [t.ring_id, t]));
+const ringOfUser = {}; T.forEach((t) => t.members.forEach((u) => (ringOfUser[u] = t.ring_id)));
+const officeDeg = (G.nodes.find((n) => n.hub && n.kind === "ip") || {}).degree;
+const shortName = { cap10: "Cap 10", cap100: "Cap 100", system: "Hub-aware" };
+
+$("lede").textContent =
+  `${T.length} fraud rings were planted in a stream of ${M.events.toLocaleString()} events (${M.duration_s} simulated seconds). ` +
+  `One of them, ${hidden.ring_id}, coordinates through an office wifi used by ${officeDeg ?? "many"} accounts, almost all of them legitimate. ` +
+  `This page replays that run: the same events went through the original degree-capped Cypher rules and through the hub-aware system, and every flag appears at the batch where it actually fired.`;
+$("prov").innerHTML = [
+  ["run_id", M.run_id], ["seed", M.seed], ["scenario", M.scenario], ["config", M.config_hash],
+  ["stream digest", M.stream_digest.slice(0, 16)],
+  ["model", M.model ? `${M.model.type} · training ${M.model.training_id}` : "none (no trained model found)"],
+  ["generated", M.generated_at],
+].map(([k, v]) => `<span>${k} <code>${esc(v)}</code></span>`).join("");
+
+// ── Replay state ───────────────────────────────────────────────────
+let t = 0, playing = false, speed = 4, det = "system", answerKey = false, last = null;
+const SPEEDS = [1, 2, 4, 8, 16];
+$("speed").innerHTML = SPEEDS.map((s) => `<button data-s="${s}" class="${s === speed ? "on" : ""}">${s}×</button>`).join("");
+$("det").innerHTML = A.map((a) => `<button data-k="${a.key}" class="${a.key === det ? "on" : ""}">${shortName[a.key] || a.key}</button>`).join("");
+const scrub = $("scrub"); scrub.max = M.duration_s;
+
+$("speed").onclick = (e) => { const s = +e.target.dataset?.s; if (!s) return; speed = s;
+  [...$("speed").children].forEach((b) => b.classList.toggle("on", +b.dataset.s === s)); };
+$("det").onclick = (e) => { const k = e.target.dataset?.k; if (!k) return; det = k;
+  [...$("det").children].forEach((b) => b.classList.toggle("on", b.dataset.k === k)); render(true); };
+$("key").onchange = (e) => { answerKey = e.target.checked; render(true); };
+$("play").onclick = () => { if (t >= M.duration_s) t = 0; playing = !playing; last = null; $("play").textContent = playing ? "❚❚ Pause" : "▶ Play"; if (playing) requestAnimationFrame(tick); };
+scrub.oninput = () => { t = +scrub.value; render(true); };
+document.addEventListener("keydown", (e) => { if (e.code === "Space" && e.target === document.body) { e.preventDefault(); $("play").click(); } });
+
+function tick(now) {
+  if (!playing) return;
+  if (last !== null) t = Math.min(M.duration_s, t + (now - last) / 1000 * speed);
+  last = now; render(false);
+  if (t >= M.duration_s) { playing = false; $("play").textContent = "▶ Replay"; return; }
+  requestAnimationFrame(tick);
+}
+
+// ── Layout (deterministic, computed once on the final graph) ───────
+const W = 1000, H = 600;
+const nodes = G.nodes.map((n, i) => ({ ...n, i, x: 0, y: 0, vx: 0, vy: 0 }));
+const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+const links = G.edges.filter((e) => byId[e.s] && byId[e.t]).map((e) => ({ ...e, a: byId[e.s], b: byId[e.t] }));
+const transfers = (G.transfers || []).filter((e) => byId[e.s] && byId[e.t]).map((e) => ({ ...e, a: byId[e.s], b: byId[e.t] }));
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const ringIds = T.map((r) => r.ring_id);
+nodes.forEach((n) => {
+  const ri = ringIds.indexOf(n.truth);
+  const cx = ri >= 0 ? W * (0.18 + 0.64 * ri / Math.max(1, ringIds.length - 1)) : W * 0.5;
+  n.x = cx + (rnd() - 0.5) * 320; n.y = H / 2 + (rnd() - 0.5) * 320;
+});
+const springs = [...links, ...transfers.filter((x, i, arr) => arr.findIndex((y) => y.s === x.s && y.t === x.t) === i && ringOfUser[x.s] && ringOfUser[x.t])];
+for (let it = 0; it < 500; it++) {
+  const alpha = 1 - it / 500;
+  for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+    const a = nodes[i], b = nodes[j]; const dx = a.x - b.x, dy = a.y - b.y; const d2 = dx * dx + dy * dy + 0.01;
+    if (d2 > 40000) continue; const f = 260 / d2 * alpha; a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+  }
+  for (const l of springs) { const dx = l.b.x - l.a.x, dy = l.b.y - l.a.y, d = Math.sqrt(dx * dx + dy * dy) + 0.01;
+    const want = l.type === "link" ? ((l.b.hub || l.a.hub) ? 150 : 35) : 40; const f = (d - want) / d * 0.05 * alpha;
+    l.a.vx += dx * f; l.a.vy += dy * f; l.b.vx -= dx * f; l.b.vy -= dy * f; }
+  for (const n of nodes) { n.vx += (W / 2 - n.x) * 0.012 * alpha; n.vy += (H / 2 - n.y) * 0.02 * alpha;
+    n.x += n.vx; n.y += n.vy; n.vx *= 0.55; n.vy *= 0.55; n.x = Math.max(16, Math.min(W - 16, n.x)); n.y = Math.max(22, Math.min(H - 16, n.y)); }
+}
+
+const svg = $("graph"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+el("defs", {}, svg).innerHTML = `<marker id="arr" viewBox="0 0 10 10" refX="15" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="context-stroke"/></marker>`;
+const gLinks = el("g", {}, svg), gTx = el("g", {}, svg), gNodes = el("g", {}, svg);
+const hud = el("text", { x: 14, y: 26, "font-size": 15, "font-weight": 600 }, svg);
+const linkEls = links.map((l) => el("line", { x1: l.a.x, y1: l.a.y, x2: l.b.x, y2: l.b.y, "stroke-width": 0.8 }, gLinks));
+// One line per directed member pair, flashed when a transfer happens.
+const pairKey = (s, d) => s + ">" + d;
+const pairs = {};
+transfers.forEach((x) => { const k = pairKey(x.s, x.t); (pairs[k] = pairs[k] || { a: x.a, b: x.b, times: [] }).times.push(x.at); });
+const pairEls = Object.entries(pairs).map(([k, p]) => ({ ...p, k,
+  line: el("line", { x1: p.a.x, y1: p.a.y, x2: p.b.x, y2: p.b.y, "stroke-width": 1.4, "marker-end": "url(#arr)" }, gTx) }));
+const nodeEls = nodes.map((n) => {
+  const g = el("g", { transform: `translate(${n.x},${n.y})` }, gNodes);
+  const shape = n.kind === "user" ? el("circle", { r: 6 }, g)
+    : el("rect", { x: n.hub ? -11 : -7, y: n.hub ? -11 : -7, width: n.hub ? 22 : 14, height: n.hub ? 22 : 14, rx: 3 }, g);
+  let label = null;
+  if (n.hub) { label = el("text", { y: -16, "text-anchor": "middle", "font-size": 12 }, g); label.textContent = `${n.hub} (${n.degree} users)`; }
+  g.addEventListener("mousemove", (ev) => showTip(ev, n.kind === "user"
+    ? `<b>${esc(n.id)}</b><br>joined at ${fmt(n.appear_s, 1)} s${n.left_s ? `, left at ${fmt(n.left_s, 1)} s` : ""}` + (answerKey ? `<br>truth: ${esc(n.truth)}` : "")
+    : `<b>${esc(n.id)}</b> (${esc(n.kind)})<br>${n.degree} active users at the end${n.hub ? `<br>benign hub: ${esc(n.hub_category)}` : ""}`));
+  g.addEventListener("mouseleave", hideTip);
+  return { g, shape, label };
+});
+
+// Flags per detector, in time order.
+const LOG = Object.fromEntries(A.map((a) => [a.key, (a.log || []).slice().sort((x, y) => x.t_s - y.t_s)]));
+
+function stateAt(key, time) {
+  const flagged = new Set(), caught = new Set(); let falseFlags = 0; const items = [];
+  for (const f of LOG[key]) { if (f.t_s > time) break;
+    items.push(f);
+    if (f.kind !== "flag") continue;
+    f.members.forEach((u) => flagged.add(u));
+    if (f.true_ring) caught.add(f.true_ring); else falseFlags++;
+  }
+  return { flagged, caught, falseFlags, items };
+}
+
+let lastPopup = null, lastFeed = -1;
+function render(force) {
+  scrub.value = t;
+  $("clock").textContent = `${t.toFixed(1)} s / ${M.duration_s} s`;
+  const fraud = css("--fraud"), benign = css("--benign"), hub = css("--hub"), attr = css("--attr"),
+    line = css("--line"), ink = css("--ink"), warn = css("--warn"), flag = css("--flag"), muted = css("--muted");
+  const st = stateAt(det, t);
+  const active = (n) => n.appear_s <= t && !(n.left_s && n.left_s <= t);
+  nodes.forEach((n, i) => {
+    const { g, shape, label } = nodeEls[i];
+    const vis = n.appear_s <= t;
+    g.style.display = vis ? "" : "none"; if (!vis) return;
+    g.style.opacity = active(n) ? 1 : 0.25;
+    let fill, stroke = "none", sw = 0;
+    if (n.kind !== "user") fill = n.hub ? hub : attr;
+    else {
+      const isF = st.flagged.has(n.id), isFraud = n.truth !== "benign";
+      if (!answerKey) fill = isF ? flag : benign;
+      else if (isF) fill = isFraud ? fraud : warn;
+      else if (isFraud) { fill = "transparent"; stroke = fraud; sw = 2; }
+      else fill = benign;
+    }
+    shape.setAttribute("fill", fill); shape.setAttribute("stroke", stroke); shape.setAttribute("stroke-width", sw);
+    if (label) label.setAttribute("fill", ink);
+  });
+  links.forEach((l, i) => { const vis = l.appear_s <= t && l.a.appear_s <= t && l.b.appear_s <= t;
+    linkEls[i].style.display = vis ? "" : "none"; linkEls[i].setAttribute("stroke", line); });
+  pairEls.forEach((p) => {
+    let lastT = -1; for (const x of p.times) { if (x <= t) lastT = x; else break; }
+    if (lastT < 0) { p.line.style.display = "none"; return; }
+    p.line.style.display = "";
+    const age = t - lastT; const ring = ringOfUser[p.a.id] && ringOfUser[p.a.id] === ringOfUser[p.b.id];
+    const fresh = age < 2.5;
+    const c = ring ? fraud : muted;
+    p.line.setAttribute("stroke", c);
+    p.line.setAttribute("stroke-width", fresh ? 2.6 : (ring ? 1.4 : 0.6));
+    p.line.setAttribute("opacity", fresh ? 1 : (ring ? (answerKey ? 0.85 : 0.5) : 0.18));
+    p.line.setAttribute("marker-end", ring || fresh ? "url(#arr)" : "");
+  });
+  hud.setAttribute("fill", ink);
+  hud.textContent = `${shortName[det]} · t = ${t.toFixed(1)} s`;
+
+  // Counters for all detectors.
+  $("counter").innerHTML = `<span class="h">detector</span><span class="h" style="text-align:right">caught</span><span class="h" style="text-align:right">false</span>` +
+    A.map((a) => { const s = stateAt(a.key, t);
+      return `<span class="${a.key === det ? "row-on" : ""}">${shortName[a.key]}</span><span class="n good">${s.caught.size}/${T.length}</span><span class="n ${s.falseFlags ? "bad" : ""}">${s.falseFlags}</span>`; }).join("");
+
+  // Feed.
+  if (force || st.items.length !== lastFeed) {
+    lastFeed = st.items.length;
+    $("feed").innerHTML = st.items.slice().reverse().slice(0, 40).map((f) =>
+      `<li><span class="t">${fmt(f.t_s, 1)} s</span><span>${f.kind === "early_warning" ? "early warning" : "flag"} ${esc(f.ring_id)} · ${f.members.length} users` +
+      (answerKey ? (f.true_ring ? ` · <span class="good">${esc(f.true_ring)}</span>` : ` · <span class="amber">false alarm</span>`) : "") + `</span></li>`).join("")
+      || `<li class="empty">No flags yet.</li>`;
+  }
+
+  // Popup: the latest flag (with its recorded explanation, for the scored system).
+  const latest = st.items.filter((f) => f.kind === "flag").slice(-1)[0];
+  const pk = latest ? det + latest.ring_id + latest.t_s + answerKey : det + "none";
+  if (force || pk !== lastPopup) {
+    lastPopup = pk;
+    const box = $("popup");
+    if (!latest) { box.className = "panel"; box.innerHTML = `<h3>Latest alert</h3><div class="empty">No alert from ${shortName[det]} yet.</div>`; }
+    else {
+      const ex = latest.explanation;
+      const maxAbs = ex ? Math.max(...ex.contributions.map((c) => Math.abs(c.value)), 0.01) : 1;
+      const bars = ex ? ex.contributions.map((c) => { const w = Math.abs(c.value) / maxAbs * 50;
+        return `<div class="row"><span>${esc(c.label)}</span><span class="track"><span class="mid"></span><span class="b" style="left:${c.value >= 0 ? 50 : 50 - w}%;width:${w}%;background:${c.value >= 0 ? "var(--fraud)" : "var(--ok)"}"></span></span><span class="v">${c.value >= 0 ? "+" : ""}${fmt(c.value)}</span></div>`; }).join("") : "";
+      box.className = "panel pop";
+      box.innerHTML = `<h3>Alert at ${fmt(latest.t_s, 1)} s · ${esc(latest.ring_id)}</h3>` +
+        (latest.risk !== null && latest.risk !== undefined ? `<div class="risk">${fmt(latest.risk)}</div><div class="note" style="margin:2px 0 0">calibrated risk${ex && ex.threshold !== undefined ? ` · threshold ${fmt(ex.threshold)}` : ""}</div>` : `<div class="note" style="margin:0">${det.startsWith("cap") ? "rule match, found on two consecutive full-graph runs" : "confirmed on two consecutive detections (no trained risk model in this run)"}</div>`) +
+        `<div class="reason">${ex ? esc(ex.reason) : `${latest.members.length} users: ${esc(latest.members.join(", "))}`}</div>` +
+        (ex && ex.counterfactual ? `<div class="cf"><b>Counterfactual.</b> ${esc(ex.counterfactual)}</div>` : "") +
+        (bars ? `<div class="bars" style="margin-top:8px">${bars}</div>` : "") +
+        (answerKey ? `<div class="note">${latest.true_ring ? `<span class="good">Correct:</span> matches ${esc(latest.true_ring)} (Jaccard ${fmt(latest.jaccard)})` : `<span class="amber">False alarm:</span> matches no planted ring`}</div>` : "");
+    }
+  }
+
+  // Legend.
+  $("legend").innerHTML = (answerKey
+    ? `<span><i style="background:${fraud}"></i>fraud, flagged (correct)</span><span><i style="background:${warn}"></i>legitimate, flagged (false alarm)</span><span><i style="border:2px solid ${fraud}"></i>fraud, not flagged (missed)</span><span><i style="background:${benign}"></i>legitimate, not flagged</span>`
+    : `<span><i style="background:${flag}"></i>flagged by ${shortName[det]}</span><span><i style="background:${benign}"></i>not flagged</span>`) +
+    `<span><i style="background:${hub};border-radius:2px"></i>benign hub</span><span><i style="background:${attr};border-radius:2px"></i>shared device/card/IP</span><span>→ transfer (bright = just happened)</span>`;
+}
+// Deep links for slides/screenshots, e.g. story.html#t=60&det=cap10&key=1
+(() => { const h = new URLSearchParams(location.hash.slice(1));
+  if (h.has("t")) t = Math.max(0, Math.min(M.duration_s, +h.get("t") || 0));
+  if (h.has("det") && LOG[h.get("det")]) { det = h.get("det"); [...$("det").children].forEach((b) => b.classList.toggle("on", b.dataset.k === det)); }
+  if (h.get("key") === "1") { answerKey = true; $("key").checked = true; } })();
+render(true);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => render(true));
+
+// ── Final cards ────────────────────────────────────────────────────
+$("cards").innerHTML = A.map((a) => {
+  const caughtIds = new Set(a.caught.map((c) => c.true_ring));
+  const rows = T.map((r) => {
+    const c = a.caught.find((x) => x.true_ring === r.ring_id);
+    return `<li><span>${esc(r.ring_id)} <span style="color:var(--muted)">· ${esc(r.type)}${r.evasion !== "none" ? " · " + esc(r.evasion) : ""}</span></span>` +
+      (c ? `<span class="tag caught">caught at ${fmt(c.flagged_s, 0)} s</span>` : `<span class="tag missed">missed</span>`) + `</li>`;
+  }).join("");
+  return `<div class="card ${a.key === "system" ? "system" : ""}"><h3>${esc(a.title)}</h3><div class="sub">${esc(a.subtitle)}</div>
+    <div class="stats"><div class="stat ${caughtIds.size === T.length ? "good" : ""}"><b>${caughtIds.size}/${T.length}</b><span>rings caught</span></div>
+    <div class="stat ${a.false_rings ? "bad" : "good"}"><b>${a.false_rings}</b><span>false rings</span></div>
+    <div class="stat ${a.benign_users_flagged ? "bad" : "good"}"><b>${a.benign_users_flagged}</b><span>innocent users flagged</span></div></div>
+    <ul class="rings">${rows}</ul><div class="note">Flag rule: ${esc(a.flag_rule)}.</div></div>`;
+}).join("");
+
+// ── Spotlight ──────────────────────────────────────────────────────
+(function spotlight() {
+  if (!S || !S.found) { $("spot").innerHTML = `<div class="card">The system did not produce a ring overlapping ${esc(hidden.ring_id)} in this run.</div>`; return; }
+  const maxAbs = Math.max(...S.contributions.map((c) => Math.abs(c.value)), 0.01);
+  const bars = S.contributions.map((c) => { const w = Math.abs(c.value) / maxAbs * 50;
+    return `<div class="row"><span title="${esc(c.feature)}">${esc(c.label)}</span><span class="track"><span class="mid"></span><span class="b" style="left:${c.value >= 0 ? 50 : 50 - w}%;width:${w}%;background:${c.value >= 0 ? "var(--fraud)" : "var(--ok)"}"></span></span><span class="v">${c.value >= 0 ? "+" : ""}${fmt(c.value)}</span></div>`; }).join("");
+  const alerted = S.alert_s !== null && S.alert_s !== undefined;
+  $("spot").innerHTML = `<div class="spot"><div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
+      <div><div style="color:var(--muted);font-size:12.5px">Tracked ring ${esc(S.ring_id)} · Jaccard ${fmt(S.jaccard)} with ${esc(S.true_ring)} · final state</div>
+      <div class="riskbig" style="color:${alerted ? "var(--fraud)" : "var(--warn)"}">${fmt(S.risk)}</div>
+      <div style="color:var(--muted);font-size:12.5px">calibrated risk · threshold ${fmt(S.threshold)} · bucket ${esc(S.calibration)}</div></div>
+      <div style="text-align:right;font-size:12.5px;color:var(--muted)">${S.early_warning_s !== null && S.early_warning_s !== undefined ? `early warning at ${fmt(S.early_warning_s, 1)} s<br>` : ""}${S.confirmed_s !== null ? `confirmed at ${fmt(S.confirmed_s, 1)} s` : "not confirmed"}${alerted ? `<br>alert at ${fmt(S.alert_s, 1)} s` : ""}<br>
+      ring became active at ${fmt(truthById[S.true_ring].activate_s, 1)} s<br>detectors: ${esc(S.detectors.join(", "))}</div></div>
+    <p style="margin:10px 0 0">${esc(S.reason)}</p>
+    <div class="cfbox"><b>Counterfactual.</b> ${esc(S.counterfactual || "None available.")}</div></div>
+    <div class="card"><h3 style="margin:0 0 4px">What moved the score</h3>
+      <div class="sub" style="min-height:0">Contribution to the log-odds of the logistic model. Red pushes towards fraud, green away.</div>
+      <div class="bars bigbars">${bars || `<div class="empty">No trained model in this run.</div>`}</div></div></div>`;
+})();
+
+// ── Timeline ───────────────────────────────────────────────────────
+(function timeline() {
+  const tl = $("timeline"), rowH = 46, top = 30, left = 170, right = 24;
+  const Wt = 1000, Ht = top + T.length * rowH + 34; tl.setAttribute("viewBox", `0 0 ${Wt} ${Ht}`);
+  const x = (s) => left + (Wt - left - right) * (s / M.duration_s);
+  const muted = css("--muted"), line = css("--line"), ink = css("--ink");
+  const colors = { cap10: css("--warn"), cap100: css("--attr"), system: css("--fraud") };
+  for (let s = 0; s <= M.duration_s; s += 15) {
+    el("line", { x1: x(s), x2: x(s), y1: top - 8, y2: Ht - 26, stroke: line }, tl);
+    const tx = el("text", { x: x(s), y: Ht - 10, "text-anchor": "middle", "font-size": 11, fill: muted }, tl); tx.textContent = `${s} s`;
+  }
+  T.forEach((r, i) => {
+    const y = top + i * rowH + rowH / 2;
+    const lab = el("text", { x: 8, y: y + 4, "font-size": 12.5, fill: ink }, tl); lab.textContent = r.ring_id;
+    if (r.spawn_s !== null) el("line", { x1: x(r.spawn_s), x2: x(r.activate_s ?? M.duration_s), y1: y, y2: y, stroke: muted, "stroke-width": 3, "stroke-dasharray": "3 3" }, tl);
+    if (r.activate_s !== null) el("line", { x1: x(r.activate_s), x2: x(M.duration_s), y1: y, y2: y, stroke: muted, "stroke-width": 3 }, tl);
+    A.forEach((a, k) => { const c = a.caught.find((z) => z.true_ring === r.ring_id); if (!c) return;
+      const m = el("circle", { cx: x(c.flagged_s), cy: y - 9 + k * 9, r: 5, fill: colors[a.key] || ink }, tl);
+      m.addEventListener("mousemove", (ev) => showTip(ev, `${esc(a.title)}<br>flagged ${esc(r.ring_id)} at ${fmt(c.flagged_s, 1)} s` +
+        (r.activate_s !== null ? `<br>${fmt(c.flagged_s - r.activate_s, 1)} s after activation` : "")));
+      m.addEventListener("mouseleave", hideTip); });
+  });
+  const lg = el("g", {}, tl); let lx = left;
+  [["dashed: forming", null], ["solid: active", null], ...A.map((a) => [a.title, colors[a.key]])].forEach(([l, c]) => {
+    if (c) el("circle", { cx: lx + 5, cy: 12, r: 5, fill: c }, lg);
+    const tx = el("text", { x: lx + (c ? 14 : 0), y: 16, "font-size": 11.5, fill: muted }, lg); tx.textContent = l;
+    lx += (c ? 20 : 8) + l.length * 6.2; });
+})();
+
+$("footer").innerHTML = `Every number on this page was computed from run <code>${esc(M.run_id)}</code> (seed ${M.seed}, scenario <code>${esc(M.scenario)}</code>, scenario hash <code>${esc(M.scenario_hash)}</code>, micro-batches of ${M.batch_size} events, full-graph rules every ${M.full_interval_s} s). ` +
+  `${esc(M.match_rule)}. The replay is the recorded log of that run, not a re-simulation; it is a single demonstration run, not an aggregate result. ` +
+  (M.model ? `Risk model: ${esc(M.model.type)}, trained on seeds ${esc((M.model.train_seeds || []).join(", "))}, evaluated on held-out seeds ${esc((M.model.test_seeds || []).join(", "))}` +
+    (M.model.test_metrics ? ` (test ROC AUC ${fmt(M.model.test_metrics.roc_auc, 3)}, Brier ${fmt(M.model.test_metrics.brier, 3)})` : "") + `; seed ${M.seed} was used for neither. ` : "") +
+  `Reproduce with <code>${esc(M.command)}</code>.`;
+</script>
+</body>
+</html>

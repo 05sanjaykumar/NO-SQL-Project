@@ -190,7 +190,11 @@ def test_dashboard_controls(client: TestClient):
     assert "money_cycle" in cat["ring_types"] and "hub_hiding" in cat["evasion_modes"]
     assert client.post("/runs/inject", json={"ring_type": "shared_ip"}).status_code == 409
 
-    client.post("/runs/start", json={"scenario": "hub_heavy", "seed": 2, "speed_multiplier": 0})
+    # 30x real time (60 simulated seconds in about 2 s), paused before injecting: at
+    # unthrottled speed a warm process emitted the whole stream before the injection
+    # arrived, so the injected ring never activated and this test was flaky.
+    client.post("/runs/start", json={"scenario": "hub_heavy", "seed": 2, "speed_multiplier": 30})
+    client.post("/runs/pause")
     inj = client.post(
         "/runs/inject", json={"ring_type": "money_cycle", "evasion": "none", "size": 4}
     )
@@ -207,6 +211,7 @@ def test_dashboard_controls(client: TestClient):
     assert cfg["alert_threshold"] == 0.7 and cfg["hub_weight_method"] == "adamic_adar"
     assert client.post("/config", json={"alert_threshold": 1.5}).status_code == 422
 
+    client.post("/runs/resume")
     for _ in range(1200):  # up to 60 s: the run takes ~15 s and longer on a busy machine
         if client.get("/status").json()["status"] == "finished":
             break

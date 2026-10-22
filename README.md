@@ -1,5 +1,7 @@
 # Hub-Aware Incremental Fraud Ring Detection on Streaming Transaction Graphs
 
+[![CI](https://github.com/au-revoir777/NO-SQL-Project/actions/workflows/ci.yml/badge.svg)](https://github.com/au-revoir777/NO-SQL-Project/actions/workflows/ci.yml)
+
 BCSE406L - NoSQL Databases
 Sanjay Kumar S (23BCE1248) · Roshan Parveen (23BCE1256)
 
@@ -26,9 +28,14 @@ It is now a streaming research system with these parts:
 ## Live dashboard
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,redis]"
 make demo              # builds web/ (Node 18+) and serves it with the API -> http://localhost:8000/ui/
+make demo-docker       # or everything in containers: docker compose --profile app up --build
 ```
+
+Without `make` (Windows): `cd web && npm ci && npm run build && cd ..`, then
+`python -m fraudsim.cli api --port 8000`. A step-by-step guide, including a
+five-minute walkthrough for presenting, is in [docs/HOWTO.md](docs/HOWTO.md).
 
 The dashboard runs any scenario live: the transaction graph grows as events
 arrive, rings form as red circles of transfers, and alerts pop into a queue
@@ -129,7 +136,28 @@ Every baseline is below the proposed method (paired Wilcoxon p < 0.001).
 Paper: [`docs/paper/paper.pdf`](docs/paper/paper.pdf) (IEEE conference
 template; tables and the numbers in the text are generated, see `make tables`).
 
+## Reproduce the paper results
+
+```bash
+python -m fraudsim.cli experiment --suite tune --output-dir results/   # thresholds on validation seeds -> configs/tuned.json
+python scripts/run_paper_experiments.py                               # E1-E7 on test seeds -> results/*/results.csv
+make tables figures                                                   # docs/paper/tables, docs/paper/figures
+python scripts/make_architecture.py                                   # architecture.drawio -> .pdf/.png
+make paper                                                            # docs/paper/paper.pdf (needs LaTeX)
+```
+
+[REPRODUCE.md](REPRODUCE.md) has the seeds, the run times and what each
+experiment answers. Every result row carries its run id, scenario hash, method
+hash and event-stream digest, every table carries the sha256 of its source
+CSV, and CI regenerates the tables from the committed results and fails if they
+differ.
+
 ## Architecture
+
+![Architecture](docs/paper/figures/architecture.png)
+
+The figure is generated from `docs/paper/figures/architecture.drawio`
+(editable in draw.io) by `scripts/make_architecture.py`. Module-level view:
 
 ```mermaid
 flowchart LR
@@ -168,7 +196,7 @@ flowchart LR
 | `src/fraudsim/api/` | FastAPI app, live run, WebSocket |
 | `src/fraudsim/demo/` | `demo-story` page builder |
 | `src/fraudsim/experiments/` | Experiment harness, threshold tuning, suite (E1-E7), statistics, figures, LaTeX tables |
-| `src/fraudsim/datasets/` | Loaders for IBM AMLworld, Elliptic, PaySim |
+| `src/fraudsim/datasets/` | Loaders for IBM AMLworld, Elliptic, IBM AMLSim samples, PaySim |
 | `web/` | Live dashboard (React, Vite, TypeScript, Cytoscape.js, Recharts) |
 | `configs/scenarios/` | baseline, high_noise, hub_heavy, adversarial, scale_sweep, drift, demo_story |
 
@@ -179,12 +207,12 @@ Design notes are in [`docs/simulator.md`](docs/simulator.md),
 
 ## Quick start
 
-Requirements: Python 3.11, and Docker Desktop for Neo4j and Redis (the
-in-memory store works without Docker).
+Requirements: Python 3.11, Node.js 18+ for the dashboard, and Docker Desktop
+for Neo4j and Redis (the in-memory store works without Docker).
 
 ```bash
 pip install -e ".[dev,redis]"
-docker compose up -d neo4j redis      # Neo4j 5.26 + GDS on 7474/7687, Redis on 6379
+docker compose up -d                  # Neo4j 5.26 + GDS on 7474/7687, Redis on 6379
 ```
 
 ```bash
@@ -214,13 +242,21 @@ Each `detect` run writes `runs/<run_id>/`:
 
 ```bash
 make test-unit                     # no services needed
-pytest -m integration              # needs `docker compose up -d neo4j redis`
+pytest -m integration              # needs `docker compose up -d`
 make lint
 ```
 
-The latest reports are in `docs/reports/`; Milestone 7 has 159 passing tests,
-including the Neo4j/GDS and Redis integration tests, and the dashboard builds
-under strict TypeScript (`make web`).
+Besides unit tests for every detector on hand-built micro-graphs, there are
+property tests for ring matching (`tests/test_properties.py`, hypothesis),
+determinism and replay tests, and a headless 60-second scenario run that checks
+the metrics it produces (`tests/test_headless_scenario.py`). The latest report
+is `docs/reports/m9_test_report.txt`.
+
+CI (GitHub Actions, `.github/workflows/ci.yml`) runs lint, unit tests, the
+Neo4j/GDS and Redis integration tests against service containers, a one-seed
+smoke experiment that regenerates tables and figures, a check that the
+committed paper tables match the committed results, the dashboard build, and
+the all-in-one Docker image.
 
 ## Milestone status
 
@@ -234,10 +270,10 @@ under strict TypeScript (`make web`).
 | M6 Logging, audit and replay | done |
 | M7 Live React dashboard | done |
 | M8 Experiments, statistics, paper, public-data loaders | done (see Results above and `docs/paper/`) |
-| M9 Quality bar (CI, README, reproduction guide) | planned |
+| M9 Quality bar (tests, CI, README, how-to) | done |
 
 Known open items:
-- Paper: citations marked `[cite: ...]` still need sources; bibliography entries must be checked before submission.
+- Paper: check the bibliography entries against the publishers' pages before submission.
 - Public data has no shared-attribute links, so hub-aware weighting is untested on real data (see [docs/datasets.md](docs/datasets.md)).
 
 ---

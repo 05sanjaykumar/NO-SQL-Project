@@ -93,6 +93,8 @@ known-first-party = ["fraudsim"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Repo root (tests.* imports), src and tests on sys.path, as with `python -m pytest`.
+pythonpath = [".", "src", "tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 timeout = 300

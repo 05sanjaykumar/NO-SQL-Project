@@ -1,5 +1,6 @@
 # Milestone 9 tests: python -m pytest -v -m "not integration" (2026-10-22), 167 passed.
-# The 12 integration tests (Neo4j/GDS, Redis) run in CI against service containers; Docker Desktop was not running on the test laptop.
+# The 12 integration tests (Neo4j/GDS, Redis) ran in GitHub Actions against service containers (run 39738695011, commit 106846e):
+# all six CI jobs passed (lint, unit-tests, integration-tests, smoke-experiment, dashboard, docker-image).
 tests/test_api.py::test_health_endpoint PASSED                           [  0%]
 tests/test_api.py::test_status_endpoint PASSED                           [  1%]
 tests/test_api.py::test_runs_lifecycle PASSED                            [  1%]

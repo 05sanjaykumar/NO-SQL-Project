@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install "ruff>=0.7"
+      - run: ruff check src tests scripts
+      - run: ruff format --check src tests scripts
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev,redis]"
+      - name: Unit tests (no services)
+        run: pytest -m "not integration" -q -p no:logging --junitxml=unit-tests.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-tests
+          path: unit-tests.xml
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      neo4j:
+        image: neo4j:5.26-community
+        ports: ["7687:7687", "7474:7474"]
+        env:
+          # Local test database only (same value as docker-compose.yml).
+          NEO4J_AUTH: neo4j/fraudring123
+          NEO4J_PLUGINS: '["graph-data-science"]'
+          NEO4J_dbms_security_procedures_unrestricted: "gds.*"
+          NEO4J_dbms_security_procedures_allowlist: "gds.*"
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+    env:
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_PASSWORD: fraudring123
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev,redis]"
+      - name: Integration tests (Neo4j + GDS, Redis Streams)
+        run: pytest -m integration -q -p no:logging --junitxml=integration-tests.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-tests
+          path: integration-tests.xml
+
+  smoke-experiment:
+    # A one-seed run of the baseline experiment, then the table and figure
+    # generators on its output: checks that the paper pipeline still works end
+    # to end. The paper's numbers come from the committed results/, not from here.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev,redis]"
+      - name: Baselines, 1 test seed, all accuracy scenarios
+        run: python -m fraudsim.cli experiment --suite baselines --seeds 1 --output-dir ci-results/
+      - name: Tables and figures from the smoke results
+        run: |
+          python -m fraudsim.experiments.latex_export --results-dir ci-results/ --output-dir ci-results/paper/tables/
+          python -m fraudsim.experiments.plotting --results-dir ci-results/ --output-dir ci-results/paper/figures/
+          test -s ci-results/paper/tables/tab1_baselines.tex
+          test -s ci-results/paper/figures/fig5_evasion.pdf
+      - name: Committed paper tables match the committed results
+        run: |
+          python -m fraudsim.experiments.latex_export --results-dir results/ --output-dir regenerated/
+          for f in tab1_baselines.tex tab1b_scenarios.tex tab2_ablation.tex tab3_scale.tex tab4_public.tex numbers.tex; do
+            diff docs/paper/tables/$f regenerated/$f
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smoke-experiment
+          path: ci-results/
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  docker-image:
+    # Builds the all-in-one image (dashboard + API) used by
+    # `docker compose --profile app up`; nothing is pushed.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t fraudsim:ci .
+      - name: Image serves the API and the dashboard
+        run: |
+          docker run -d --name api -p 8000:8000 fraudsim:ci
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/health && break; sleep 2; done
+          curl -sf http://localhost:8000/health
+          curl -sf http://localhost:8000/ui/ | grep -qi "<div id=\"root\""

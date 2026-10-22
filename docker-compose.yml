@@ -22,7 +22,11 @@ services:
       timeout: 5s
       retries: 5
 
+  # The API + dashboard in a container. Not started by a plain `docker compose up`
+  # (which brings up Neo4j and Redis for `make demo` on the host); start it with
+  # `docker compose --profile app up --build` and open http://localhost:8000/ui/.
   app:
+    profiles: ["app"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -34,8 +38,6 @@ services:
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=fraudring123
       - REDIS_URL=redis://redis:6379/0
-    volumes:
-      - .:/app
     depends_on:
       neo4j:
         condition: service_healthy

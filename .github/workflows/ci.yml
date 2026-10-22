@@ -36,6 +36,9 @@ jobs:
       - run: pip install -e ".[dev,redis]"
       - name: Unit tests (no services)
         run: pytest -m "not integration" -q -p no:logging --junitxml=unit-tests.xml
+      - name: Failures as annotations
+        if: failure()
+        run: python scripts/junit_annotations.py unit-tests.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -73,6 +76,9 @@ jobs:
       - run: pip install -e ".[dev,redis]"
       - name: Integration tests (Neo4j + GDS, Redis Streams)
         run: pytest -m integration -q -p no:logging --junitxml=integration-tests.xml
+      - name: Failures as annotations
+        if: failure()
+        run: python scripts/junit_annotations.py integration-tests.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:

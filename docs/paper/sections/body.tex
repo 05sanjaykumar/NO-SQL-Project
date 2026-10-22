@@ -1,30 +1,35 @@
 \section{Introduction}
 Fraud rings are groups of accounts that act together: they share devices,
 payment cards or network addresses, and they move money among themselves in
-cycles or fan-in/fan-out patterns. Property graphs make these relations
-explicit, and graph pattern queries are a common way to surface them
-\cite{pourhabibi2020fraud,akoglu2015graph}. Two problems appear as soon as such
-queries run on a live stream of events.
+cycles or fan-in and fan-out patterns. Graphs make these relations explicit,
+which is why graph-based methods dominate fraud and anti-money laundering
+(AML) research \cite{pourhabibi2020fraud,pan2025gbfrd}. Two problems appear as
+soon as such methods run on a live stream of events.
 
 \textbf{The hub dilemma.} Legitimate shared infrastructure, such as an office
-gateway, a carrier-grade NAT address or a store kiosk, links hundreds of
-unrelated accounts. A query that treats every shared attribute as evidence
-floods analysts with false rings. The usual remedy is a hard degree cap:
-attributes shared by more than $c$ accounts are ignored. The cap removes the
-noise but also opens an evasion path, because a ring that shares a busy
-attribute becomes invisible to it.
+gateway, a carrier-grade network address translation (NAT) address or a store
+kiosk, links many unrelated accounts. Linking accounts by shared properties
+produces sparse links through strongly identifying entities and over-linkage
+through widely shared ones such as IP addresses \cite{yin2022behavioral}. The
+usual remedy in rule-based systems is a hard degree cap: attributes shared by
+more than $c$ accounts are ignored. The cap removes the noise but also opens an
+evasion path, because a ring that shares a busy attribute becomes invisible to
+it, much as fraudsters elsewhere hide by connecting to benign entities
+\cite{liu2025robust}.
 
 \textbf{Latency on a stream.} Accounts, links and transfers arrive
 continuously. Re-running whole-graph queries on a timer delays detection, and
-the cost of each pass grows with the graph rather than with the change.
+the cost of each pass grows with the graph rather than with the change, a
+problem that incremental community detection addresses for clustering
+\cite{zhang2026incremental,abughofa2021incremental}.
 
 We make four contributions.
 \begin{itemize}
 \item \textbf{C1, hub-aware weighting.} We replace the degree cap with a
-continuous weight: each shared attribute contributes $1/\ln(1+\deg)$ with
-exponential time decay, and transfers inside the pair add weight. Busy hubs
-count for little on their own, but a group that shares a hub and also trades
-among itself still accumulates weight (Section~\ref{sec:method}).
+continuous weight: each shared attribute contributes $1/\ln(1+d)$, where $d$ is
+its degree, with exponential time decay, and transfers inside the pair add
+weight. Busy hubs count for little on their own, but a group that shares a hub
+and also trades among itself still accumulates weight (Section~\ref{sec:method}).
 \item \textbf{C2, incremental detection.} A micro-batch engine re-evaluates only
 the $k$-hop region touched by each batch, with fan-out limits that keep that
 region bounded when it reaches a hub.
@@ -34,36 +39,64 @@ evidence subgraph and counterfactuals.
 \item \textbf{C4, evaluation under evasion.} A deterministic simulator with
 ring-level ground truth and five evasion strategies, including an attacker that
 adapts to the detector's flags, lets us measure each component on identical
-streams (paired design) with confidence intervals.
+event streams (a paired design) with confidence intervals.
 \end{itemize}
 
 \section{Related Work}
 \label{sec:related}
-\textbf{Graph-based fraud detection.} Surveys of graph anomaly detection
-\cite{akoglu2015graph} and of graph-based fraud detection
-\cite{pourhabibi2020fraud} cover dense-subgraph, community and pattern-based
-methods. Dense-subgraph methods such as FRAUDAR \cite{hooi2016fraudar} are
-explicitly designed to resist camouflage edges; they operate on static
-bipartite graphs, while we target a stream with ring-level alerts.
-\TODOcite{dense subgraph detection on streams (e.g. incremental densest subgraph)}
+\textbf{Graph fraud detection.} Most recent graph fraud detection work trains
+graph neural networks (GNNs) to label nodes. It addresses heterophily, where
+fraudulent nodes connect mostly to benign ones \cite{hu2025hhgfd,lv2026mandate};
+camouflage, by reweighting neighbours adversarially \cite{liu2025robust}; scarce
+or unreliable labels, with one-class and semi-supervised training
+\cite{li2025ocgfd,giles2023suspicious,peng2023csocan}; and interpretability
+\cite{yu2024ingfd}. These methods output per-node scores and need labelled
+training graphs. GB-FRD \cite{pan2025gbfrd} targets fraud rings in peer-to-peer
+payment graphs, as we do, and Yin et al.\ \cite{yin2022behavioral} replace hard
+shared-property links with behavioural similarity because of over-linkage
+through shared entities. We keep shared-attribute links, which are cheap and
+explainable, and change how much each one counts.
 
-\textbf{Community detection.} Louvain modularity optimisation
-\cite{blondel2008louvain} is a common unsupervised baseline for finding groups
-of colluding accounts; we use it as a baseline.
+\textbf{Dense subgraphs and peeling.} Finding unusually dense groups is a
+classical route to fraud and collusion detection: spectral and greedy
+densest-subgraph algorithms scale to billion-edge graphs \cite{feng2024unified},
+and sequential peeling of a weighted bipartite graph exposes coordinated
+adversarial annotators \cite{karaaslanli2025crowd}. Core decomposition, the
+peeling primitive we use to extract dense cores, has efficient parallel and
+GPU implementations \cite{ahmad2023gpukcore,li2021graphblas} and is related to
+densest-subgraph approximation \cite{dhulipala2022dp}. These methods run on a
+whole static graph; we peel only the region a micro-batch touched.
 
-\textbf{Streaming and incremental graph analytics.}
-\TODOcite{incremental graph pattern matching / continuous subgraph queries}
-\TODOcite{Neo4j GDS or streaming graph database systems}
+\textbf{Community detection on dynamic graphs.} Louvain modularity optimisation
+remains a standard way to find groups and is still being refined
+\cite{li2023dplouvain}; we use it as a baseline. Incremental community
+detection avoids repartitioning a changing graph by updating only the
+affected communities \cite{zhang2026incremental,abughofa2021incremental}.
+Community structure, however, is not ring structure: a benign hub joins
+thousands of users into one community.
 
-\textbf{Graph neural networks for AML.} GNNs have been applied to transaction
-graphs such as Elliptic \cite{weber2019elliptic} and AMLworld
-\cite{altman2023amlworld}. They classify transactions or accounts rather than
-emit groups, and they are not evaluated here (Section~\ref{sec:threats}).
-\TODOcite{GNN fraud ring / camouflage-resistant GNN work}
+\textbf{Similarity weighting.} Local similarity indices such as Jaccard and
+Adamic--Adar, which discounts a shared neighbour by the logarithm of its
+degree, are standard in link prediction \cite{varma2022jaccard}. Our hub weight
+applies the same discount to shared attributes, and we match flagged rings to
+true ones by Jaccard overlap.
 
-\textbf{Hub handling.} Down-weighting high-degree nodes by
-$1/\log(\deg)$ follows the Adamic--Adar idea from link prediction.
-\TODOcite{Adamic and Adar 2003, Friends and neighbors on the Web}
+\textbf{AML on public data.} Work on the Elliptic Bitcoin graph compares tabular
+ensembles with GNNs under temporal splits
+\cite{badjie2026ensembles,kumar2026tagat,lu2026lagcn,shah2025aml}; AMLworld
+provides synthetic laundering attempts with typology labels
+\cite{altman2023amlworld}. These studies classify transactions, so their
+scores are not comparable with our ring-level metrics
+(Section~\ref{sec:public}).
+
+\textbf{Calibration and explanations.} Post-hoc calibration such as Platt
+scaling and isotonic regression makes AML risk scores usable as probabilities
+\cite{azbergen2026calibration}, and learned calibration has been studied
+beyond classification \cite{ding2021temperature}. Counterfactual explanations
+state what would have to change for a different decision; their robustness
+\cite{artelt2021robustness}, consistency across model updates
+\cite{movin2025acdc} and per-feature importance \cite{meulemeester2026cfi} are
+active topics. We attach simple, model-specific counterfactuals to every alert.
 
 \section{Method}
 \label{sec:method}
@@ -71,27 +104,36 @@ Fig.~\ref{fig:arch} shows the system. A seeded simulator emits observable
 events (account joins and leaves, attribute links, transfers); ground truth
 goes only to a ledger the detector never sees.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{\figpath/architecture.pdf}
-\caption{Architecture. Solid arrows are the observable data path; dashed
-arrows carry labels (to evaluation only) and, in closed-loop runs, the
-detector's flags back to the adaptive attacker.}
+\includegraphics[width=\textwidth]{\figpath/architecture.pdf}
+\caption{Overview of the system. (a) A seeded simulator emits the observable
+event stream in micro-batches; labels go only to a ledger. (b) Each batch is
+written to the graph store and expanded to the bounded region it touched.
+(c) Shared attributes are weighted by their degree, so a busy hub counts for
+little and a rarely shared device for much. (d) Incremental detectors run on
+the region and a tracker confirms rings across batches. (e) Confirmed rings are
+scored, explained and alerted. Solid arrows: data flow; dashed arrows: labels
+(evaluation only) and, in closed-loop runs, alerts returned to the attacker.}
 \label{fig:arch}
-\end{figure}
+\end{figure*}
 
 \subsection{Graph model}
 Users link to devices, cards and IP addresses
 (\texttt{USED\_DEVICE}, \texttt{HAS\_CARD}, \texttt{LOGGED\_IN\_FROM}) and send
 transfers to each other. The same contract is implemented over Neo4j (Cypher)
 and over an in-memory store with identical semantics; all experiments below use
-the in-memory store.
+the in-memory store. In live runs, events reach the engine through an
+in-process queue or Redis Streams, whose consumer settings (batch size,
+blocking timeout) trade throughput against latency \cite{bora2026hyades}.
 
 \subsection{Hub-aware weighting (C1)}
 For two users $u,v$ the edge weight is
 \begin{equation}
-W(u,v)=\sum_{a\in A(u)\cap A(v)} h(\deg a)\,\delta(t_a)
-+\min\Big(\beta\sum_{x\in T(u,v)}\delta(t_x),\,\beta_{\max}\Big),
+\begin{split}
+W(u,v)={}&\sum_{a\in A(u)\cap A(v)} h(\deg a)\,\delta(t_a)\\
+&+\min\Big(\beta\sum_{x\in T(u,v)}\delta(t_x),\,\beta_{\max}\Big),
+\end{split}
 \label{eq:w}
 \end{equation}
 where $h(d)=1/\ln(1+d)$, $\delta(t)=2^{-t/\tau}$ is exponential decay with
@@ -126,7 +168,7 @@ over 19 ring features (size, density, which attribute kinds are shared, the
 hub-adjusted weight, cycle presence and length, burstiness, account ages,
 internal transfers per member, amount statistics, growth, hub exposure and
 the number of agreeing detectors), calibrated with isotonic regression
-\cite{zadrozny2002isotonic}. A ring becomes an alert when its calibrated risk
+\cite{azbergen2026calibration}. A ring becomes an alert when its calibrated risk
 reaches the alert threshold $\theta_a$. Each alert carries the per-feature
 contributions to the score, the subgraph of shared attributes and transfers
 that formed it, and counterfactuals (for the leading features, the value at which
@@ -203,7 +245,7 @@ detectors.
 \item \textbf{Static Cypher, cap 100 / cap 10.} The original rules: shared
 device (Q1), shared card (Q2), 3-cycles of transfers (Q3), and shared IP with a
 degree cap (Q4a/Q4b), run on the whole graph every 5\,s of simulated time.
-\item \textbf{Louvain.} Louvain communities \cite{blondel2008louvain} of the
+\item \textbf{Louvain.} Louvain communities \cite{li2023dplouvain} of the
 user graph projected through shared attributes and transfers, kept when dense
 enough.
 \item \textbf{Connected components.} Weakly connected components of the same
@@ -270,8 +312,5 @@ positive results are on synthetic data. The next steps are data with real
 shared-attribute links, longer windows for slow rings, and a Neo4j-backed
 measurement of the same latency curve.
 
-\section*{Reproducibility}
-Code, scenario files, trained models and the scripts that produce every table
-and figure are in the project repository; \texttt{REPRODUCE.md} lists the exact
-commands. Each result row records its scenario hash, method configuration hash
-and event-stream digest.
+Code, scenarios, models and the scripts that regenerate every table and figure
+are in the project repository (\texttt{REPRODUCE.md}).

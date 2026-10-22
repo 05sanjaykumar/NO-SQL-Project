@@ -25,3 +25,7 @@ docs/paper/*.log
 docs/paper/*.bbl
 docs/paper/*.blg
 docs/paper/*.out
+
+# Reference papers and template supplied by the authors (publisher PDFs, not redistributed)
+papers_nosql/
+images/papers_nosql/

@@ -1,0 +1,184 @@
+{
+  "grids": [
+    {
+      "experiment": "e1_baselines",
+      "scenarios": [
+        "baseline",
+        "high_noise",
+        "hub_heavy",
+        "adversarial",
+        "drift"
+      ],
+      "scenario_hashes": {
+        "baseline": "8c6300432edfabdb",
+        "high_noise": "7f768d989b7d51e6",
+        "hub_heavy": "031690a6797d4592",
+        "adversarial": "e348c3eccc50e4bb",
+        "drift": "dbaf6281ea4c2b23"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1010
+      ],
+      "methods": [
+        {
+          "name": "static_cap100",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 100
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 100)",
+          "hash": "ba014e72f65daf1d"
+        },
+        {
+          "name": "static_cap10",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10)",
+          "hash": "d5c0ce97f23ddc91"
+        },
+        {
+          "name": "louvain",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "algorithm": "louvain"
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Louvain communities",
+          "hash": "7593432cf55dbba2"
+        },
+        {
+          "name": "plain_cc",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "algorithm": "wcc",
+              "min_density": 0.0
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Connected components",
+          "hash": "f589bd82cbc06648"
+        },
+        {
+          "name": "proposed",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "Hub-aware incremental (proposed)",
+          "hash": "66e56ec6065dad98"
+        },
+        {
+          "name": "proposed_default",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": null,
+          "label": "Proposed, a-priori thresholds",
+          "hash": "aeb845ca42e754d0"
+        }
+      ],
+      "scenario_overrides": {},
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 300,
+      "python": "3.11.9"
+    }
+  ]
+}

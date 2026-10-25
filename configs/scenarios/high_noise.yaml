@@ -1,0 +1,66 @@
+name: high_noise
+description: "High noise transaction environment with heavy benign activity to test false positive resistance"
+version: "2.0"
+
+simulation:
+  duration_seconds: 60
+  target_event_rate: 50.0
+  num_users: 150
+  num_devices: 80
+  num_cards: 90
+  num_ips: 100
+  heavy_tail_alpha: 2.1
+  user_join_rate: 0.5
+  user_leave_rate: 0.3
+  benign_mix:
+    transaction: 0.8
+    ip_login: 0.12
+    device_link: 0.05
+    card_link: 0.03
+  hub_distribution:
+    large_campus_wifi:
+      size: 45
+      type: "ip"
+      category: public_wifi
+    family_device:
+      size: 6
+      type: "device"
+      category: family_device
+  hub_size_distribution:
+    count: 10
+    min_size: 3
+    max_size: 30
+    alpha: 1.5
+    categories: [office, public_wifi, family_device]
+
+rings:
+  - id: noise_ring_1
+    type: shared_device
+    size: 4
+    shared_attribute: "device_noise_01"
+    spawn_time_s: 10
+    evasion: decoy_edges
+  - id: noise_ring_2
+    type: money_cycle
+    size: 4
+    length: 4
+    spawn_time_s: 20
+    evasion: none
+  - id: noise_chain
+    type: layered_chain
+    size: 5
+    spawn_time_s: 30
+    evasion: none
+  - id: noise_fan_out
+    type: smurfing_fan_out
+    size: 6
+    spawn_time_s: 35
+    evasion: none
+
+random_rings:
+  rate_per_min: 2.0
+  types: [shared_device, shared_card, shared_ip, money_cycle, smurfing_fan_in]
+  size_min: 3
+  size_max: 6
+  evasion_weights: {none: 2.0, decoy_edges: 1.0}
+  active_duration_s: [15, 40]

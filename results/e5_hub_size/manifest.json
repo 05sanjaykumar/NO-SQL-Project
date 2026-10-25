@@ -1,0 +1,934 @@
+{
+  "grids": [
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap100",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 100
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 100)",
+          "hash": "ba014e72f65daf1d"
+        },
+        {
+          "name": "static_cap10",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10)",
+          "hash": "d5c0ce97f23ddc91"
+        },
+        {
+          "name": "proposed",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "Hub-aware incremental (proposed)",
+          "hash": "66e56ec6065dad98"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 5,
+        "simulation.num_users": 100
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 15,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap100",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 100
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 100)",
+          "hash": "ba014e72f65daf1d"
+        },
+        {
+          "name": "static_cap10",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10)",
+          "hash": "d5c0ce97f23ddc91"
+        },
+        {
+          "name": "proposed",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "Hub-aware incremental (proposed)",
+          "hash": "66e56ec6065dad98"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 10,
+        "simulation.num_users": 100
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 15,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap100",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 100
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 100)",
+          "hash": "ba014e72f65daf1d"
+        },
+        {
+          "name": "static_cap10",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10)",
+          "hash": "d5c0ce97f23ddc91"
+        },
+        {
+          "name": "proposed",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "Hub-aware incremental (proposed)",
+          "hash": "66e56ec6065dad98"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 25,
+        "simulation.num_users": 100
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 15,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap100",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 100
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 100)",
+          "hash": "ba014e72f65daf1d"
+        },
+        {
+          "name": "static_cap10",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10)",
+          "hash": "d5c0ce97f23ddc91"
+        },
+        {
+          "name": "proposed",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "Hub-aware incremental (proposed)",
+          "hash": "66e56ec6065dad98"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 50,
+        "simulation.num_users": 100
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 15,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap100",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 100
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 100)",
+          "hash": "ba014e72f65daf1d"
+        },
+        {
+          "name": "static_cap10",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10)",
+          "hash": "d5c0ce97f23ddc91"
+        },
+        {
+          "name": "proposed",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "Hub-aware incremental (proposed)",
+          "hash": "66e56ec6065dad98"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 100,
+        "simulation.num_users": 150
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 15,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap100",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 100
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 100)",
+          "hash": "ba014e72f65daf1d"
+        },
+        {
+          "name": "static_cap10",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10)",
+          "hash": "d5c0ce97f23ddc91"
+        },
+        {
+          "name": "proposed",
+          "overrides": {
+            "static_cypher": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "hub_aware": {
+              "edge_threshold": 0.3
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": true,
+          "alert_threshold": 0.8,
+          "label": "Hub-aware incremental (proposed)",
+          "hash": "66e56ec6065dad98"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 200,
+        "simulation.num_users": 250
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 15,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap10_nocycle",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10, no Q3)",
+          "hash": "33823a1d571cd6b2"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 5,
+        "simulation.num_users": 100
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 5,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap10_nocycle",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10, no Q3)",
+          "hash": "33823a1d571cd6b2"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 10,
+        "simulation.num_users": 100
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 5,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap10_nocycle",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10, no Q3)",
+          "hash": "33823a1d571cd6b2"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 25,
+        "simulation.num_users": 100
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 5,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap10_nocycle",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10, no Q3)",
+          "hash": "33823a1d571cd6b2"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 50,
+        "simulation.num_users": 100
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 5,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap10_nocycle",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10, no Q3)",
+          "hash": "33823a1d571cd6b2"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 100,
+        "simulation.num_users": 150
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 5,
+      "python": "3.11.9"
+    },
+    {
+      "experiment": "e5_hub_size",
+      "scenarios": [
+        "hub_heavy"
+      ],
+      "scenario_hashes": {
+        "hub_heavy": "031690a6797d4592"
+      },
+      "seeds": [
+        1001,
+        1002,
+        1003,
+        1004,
+        1005
+      ],
+      "methods": [
+        {
+          "name": "static_cap10_nocycle",
+          "overrides": {
+            "hub_aware": {
+              "enabled": false
+            },
+            "temporal_cycle": {
+              "enabled": false
+            },
+            "smurfing": {
+              "enabled": false
+            },
+            "community": {
+              "enabled": false
+            },
+            "static_cypher": {
+              "max_degree_cap": 10,
+              "enable_q3_money_cycle": false
+            }
+          },
+          "engine": {},
+          "ensemble": {},
+          "scored": false,
+          "alert_threshold": null,
+          "label": "Static Cypher (cap 10, no Q3)",
+          "hash": "33823a1d571cd6b2"
+        }
+      ],
+      "scenario_overrides": {
+        "simulation.hub_distribution.mega_office_gateway.size": 200,
+        "simulation.num_users": 250
+      },
+      "model": {
+        "path": "C:\\Users\\hp\\Desktop\\NoSQL\\models\\ring_scorer_lr.joblib",
+        "sha256": "0e33d430f7bec829f7ed34fbfc8babe005666c427b3397190635a9b93a2f1537"
+      },
+      "rows": 5,
+      "python": "3.11.9"
+    }
+  ]
+}

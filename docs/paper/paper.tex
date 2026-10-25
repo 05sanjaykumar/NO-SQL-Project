@@ -1,0 +1,51 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{hyperref}
+
+% Every number in the text comes from tables/numbers.tex, generated from
+% results/*/results.csv by `make tables` (fraudsim.experiments.latex_export).
+\input{tables/numbers.tex}
+% Claims that still need a source. Never replace with a reference that has not been read.
+\newcommand{\TODOcite}[1]{\textcolor{red}{[cite: #1]}}
+\newcommand{\TBD}[1]{\textcolor{red}{[TBD: #1]}}
+\newcommand{\figpath}{figures}
+
+\begin{document}
+
+\title{Hub-Aware Incremental Fraud Ring Detection on Streaming Transaction Graphs}
+
+\author{\IEEEauthorblockN{Sanjay Kumar S}
+\IEEEauthorblockA{\textit{School of Computer Science and Engineering} \\
+\textit{VIT-AP University}\\
+Amaravati, India \\
+23BCE1248@vitap.ac.in}
+\and
+\IEEEauthorblockN{Roshan Parveen}
+\IEEEauthorblockA{\textit{School of Computer Science and Engineering} \\
+\textit{VIT-AP University}\\
+Amaravati, India \\
+23BCE1256@vitap.ac.in}
+}
+
+\maketitle
+
+\input{sections/abstract.tex}
+
+\begin{IEEEkeywords}
+fraud rings, property graphs, streaming graph analytics, incremental detection, hub-aware weighting, explainability
+\end{IEEEkeywords}
+
+\input{sections/body.tex}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

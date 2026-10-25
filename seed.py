@@ -26,18 +26,38 @@ from collections import defaultdict
 
 from neo4j import GraphDatabase
 
-# Inside Docker the database is reachable by service name; natively it is on
-# localhost. Both paths work without editing anything.
-URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-AUTH = (os.environ.get("NEO4J_USER", "neo4j"), os.environ.get("NEO4J_PASSWORD", "fraudring123"))
+URI = "bolt://localhost:7687"
+AUTH = ("neo4j", "fraudring123")
 
-DEFAULT_USERS = 30
-MIN_USERS = 30  # the planted rings occupy fixed positions up to index 28
+random.seed(42)  # reproducible - same graph every run
 
+N_USERS = 30
+N_DEVICES = 18
+N_CARDS = 18
+N_IPS = 20
+N_RANDOM_TXNS = 37
 
-def pool_sizes(n_users):
-    """
-    Artefact pool sizes for a given user count.
+users = [f"u{i:02d}" for i in range(1, N_USERS + 1)]
+devices = [f"device_{i:03d}" for i in range(1, N_DEVICES + 1)]
+cards = [f"card_{i:03d}" for i in range(1, N_CARDS + 1)]
+ips = [f"ip_{i:03d}" for i in range(1, N_IPS + 1)]
+
+# ---------------------------------------------------------------- planted rings
+
+RING_A_USERS = ["u01", "u02", "u03", "u04"]  # all share one device
+RING_A_DEVICE = "device_007"
+
+RING_B_USERS = ["u10", "u11", "u12"]  # all share one card
+RING_B_CARD = "card_005"
+
+RING_C_USERS = ["u27", "u28", "u29"]  # all share one IP
+RING_C_IP = "ip_004"
+
+CYCLE_USERS = ["u21", "u22", "u23"]  # money goes round in a loop
+
+# Not fraud. Office wifi. This is what the degree cap in Q3 has to filter out.
+HUB_IP = "ip_001"
+HUB_USERS = [f"u{i:02d}" for i in range(13, 25)]  # 12 users
 
     They scale with the user count because background sharing is capped at two
     users per artefact - too small a pool and there are not enough slots to go
@@ -151,11 +171,30 @@ def generate(n_users=DEFAULT_USERS, seed=42):
     used_device, has_card = {}, {}
     logged_in_from = defaultdict(list)
 
-    for u, dev, card, ip in zip(
-        users,
-        assign_with_cap(free_devices, n_users, cap=2),
-        assign_with_cap(free_cards, n_users, cap=2),
-        assign_with_cap(free_ips, n_users, cap=2),
+    noise_devices = assign_with_cap(free_devices, len(users), cap=2)
+    noise_cards = assign_with_cap(free_cards, len(users), cap=2)
+    noise_ips = assign_with_cap(free_ips, len(users), cap=2)
+
+    for u, dev, card, ip in zip(users, noise_devices, noise_cards, noise_ips, strict=True):
+        used_device[u] = dev
+        has_card[u] = card
+        logged_in_from[u] = [ip]
+
+    # --- phase 2: plant the rings
+    for u in RING_A_USERS:
+        used_device[u] = RING_A_DEVICE
+    for u in RING_B_USERS:
+        has_card[u] = RING_B_CARD
+    for u in RING_C_USERS:
+        logged_in_from[u].append(RING_C_IP)
+    for u in HUB_USERS:
+        logged_in_from[u].append(HUB_IP)
+
+    # --- transactions: the cycle first, then noise
+    txns = []
+    a, b, c = CYCLE_USERS
+    for i, (sender, receiver, amount) in enumerate(
+        [(a, b, 5000.0), (b, c, 4800.0), (c, a, 4600.0)]
     ):
         used_device[u], has_card[u], logged_in_from[u] = dev, card, [ip]
 
@@ -203,8 +242,8 @@ def generate(n_users=DEFAULT_USERS, seed=42):
                      "amount": round(random.uniform(50, 2000), 2), "ring": None})
         made += 1
 
-    data = {
-        "users": [{"user_id": u, "name": f"User {u[1:]}", "ring": ring_of.get(u)} for u in users],
+    return {
+        "users": [{"user_id": u, "name": f"User {u[1:]}", "ring": RING_OF.get(u)} for u in users],
         "devices": [{"device_id": d} for d in devices],
         "cards": [{"card_id": c, "issuer": random.choice(["visa", "mastercard"])} for c in cards],
         "ips": [{"ip": i} for i in ips],
@@ -241,19 +280,32 @@ LOAD = [
     ("devices", "UNWIND $rows AS r CREATE (:Device {device_id: r.device_id})"),
     ("cards", "UNWIND $rows AS r CREATE (:CreditCard {card_id: r.card_id, issuer: r.issuer})"),
     ("ips", "UNWIND $rows AS r CREATE (:IPAddress {ip: r.ip})"),
-    ("used_device", """UNWIND $rows AS r
-        MATCH (u:User {user_id: r.user_id}), (d:Device {device_id: r.device_id})
-        CREATE (u)-[:USED_DEVICE]->(d)"""),
-    ("has_card", """UNWIND $rows AS r
-        MATCH (u:User {user_id: r.user_id}), (c:CreditCard {card_id: r.card_id})
-        CREATE (u)-[:HAS_CARD]->(c)"""),
-    ("logged_in_from", """UNWIND $rows AS r
-        MATCH (u:User {user_id: r.user_id}), (i:IPAddress {ip: r.ip})
-        CREATE (u)-[:LOGGED_IN_FROM]->(i)"""),
-    ("txns", """UNWIND $rows AS r
-        MATCH (s:User {user_id: r.sender}), (x:User {user_id: r.receiver})
-        CREATE (s)-[:PERFORMED]->(t:Transaction {txn_id: r.txn_id, amount: r.amount, ring: r.ring})
-        CREATE (t)-[:SENT_TO]->(x)"""),
+    (
+        "used_device",
+        """UNWIND $rows AS r
+           MATCH (u:User {user_id: r.user_id}), (d:Device {device_id: r.device_id})
+           CREATE (u)-[:USED_DEVICE]->(d)""",
+    ),
+    (
+        "has_card",
+        """UNWIND $rows AS r
+           MATCH (u:User {user_id: r.user_id}), (c:CreditCard {card_id: r.card_id})
+           CREATE (u)-[:HAS_CARD]->(c)""",
+    ),
+    (
+        "logged_in_from",
+        """UNWIND $rows AS r
+           MATCH (u:User {user_id: r.user_id}), (i:IPAddress {ip: r.ip})
+           CREATE (u)-[:LOGGED_IN_FROM]->(i)""",
+    ),
+    (
+        "txns",
+        """UNWIND $rows AS r
+           MATCH (s:User {user_id: r.sender}), (x:User {user_id: r.receiver})
+           CREATE (s)-[:PERFORMED]->(t:Transaction {
+               txn_id: r.txn_id, amount: r.amount, ring: r.ring})
+           CREATE (t)-[:SENT_TO]->(x)""",
+    ),
 ]
 
 BATCH = 5000

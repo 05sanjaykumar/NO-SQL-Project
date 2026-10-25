@@ -1,0 +1,63 @@
+name: scale_sweep
+description: "Large scale sweep scenario for benchmarking latency and throughput against increasing graph sizes"
+version: "2.0"
+
+# Base point of the sweep. The Milestone 8 harness overrides sizes and rates per sweep step.
+simulation:
+  duration_seconds: 120
+  target_event_rate: 100.0
+  num_users: 1000
+  num_devices: 400
+  num_cards: 400
+  num_ips: 300
+  heavy_tail_alpha: 2.1
+  user_join_rate: 1.0
+  user_leave_rate: 0.5
+  hub_distribution:
+    cloud_proxy:
+      size: 150
+      type: "ip"
+      category: carrier_nat
+    workplace_network:
+      size: 80
+      type: "ip"
+      category: office
+  hub_size_distribution:
+    count: 30
+    min_size: 3
+    max_size: 100
+    alpha: 1.3
+
+rings:
+  - id: sweep_ring_1
+    type: shared_device
+    size: 6
+    spawn_time_s: 15
+    evasion: none
+  - id: sweep_ring_2
+    type: money_cycle
+    size: 4
+    length: 4
+    spawn_time_s: 40
+    evasion: none
+  - id: sweep_ring_3
+    type: smurfing_fan_in
+    size: 8
+    spawn_time_s: 70
+    evasion: none
+
+random_rings:
+  rate_per_min: 3.0
+  types:
+    - shared_device
+    - shared_card
+    - shared_ip
+    - money_cycle
+    - smurfing_fan_in
+    - smurfing_fan_out
+    - layered_chain
+    - mixed_attribute
+  size_min: 3
+  size_max: 8
+  evasion_weights: {none: 3.0, hub_hiding: 1.0, decoy_edges: 1.0}
+  active_duration_s: [20, 60]

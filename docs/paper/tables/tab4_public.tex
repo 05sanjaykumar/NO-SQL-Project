@@ -1,0 +1,20 @@
+% generated from results/public/results.csv (sha256 of LF text 00f8af863359751c, 5 rows)
+\begin{table*}[t]
+\centering
+\caption{Public data, transaction detectors only (no device/card/IP links exist). Account precision/recall:
+accounts in confirmed groups vs.\ accounts in laundering transactions. Attempt recall: share of laundering
+attempts that lie entirely in the slice and are at least half covered by one flagged group.}
+\label{tab:public}
+\begin{tabular}{lllrrrr}
+\toprule
+Dataset & Slice & Rows & Attempts & Acc.\ precision & Acc.\ recall & Attempt recall \\
+\midrule
+amlsim\_20K\_cycle200 & all & 117,805 & 0 & -- & 0.00 & -- \\
+amlsim\_20K\_fanin200 & all & 118,250 & 0 & -- & 0.00 & -- \\
+amlsim\_20K\_fanin200cycle200 & all & 120,558 & 0 & -- & 0.00 & -- \\
+elliptic & all & 234,355 & 0 & -- & 0.00 & -- \\
+amlworld & 2022-09-01 to 09-05 (excl.) & 2,284,182 & 55 & 0.03 & 0.01 & 0.00 \\
+\multicolumn{7}{l}{\quad attempt recall by typology: bipartite 0.00, cycle 0.00, fan-in 0.00, fan-out 0.00, gather-scatter 0.00, random 0.00, scatter-gather 0.00, stack 0.00} \\
+\bottomrule
+\end{tabular}
+\end{table*}

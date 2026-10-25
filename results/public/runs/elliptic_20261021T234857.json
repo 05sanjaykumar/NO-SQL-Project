@@ -1,0 +1,20 @@
+{
+  "dataset": "elliptic",
+  "events": 438124,
+  "accounts": 203769,
+  "illicit_accounts": 4545,
+  "groups": 0,
+  "files": "[\"elliptic_txs_features.csv\", \"elliptic_txs_classes.csv\", \"elliptic_txs_edgelist.csv\"]",
+  "sha256": "a35053ba68a98e43",
+  "rows": 234355,
+  "accounts_flagged": 0,
+  "illicit_flagged": 0,
+  "account_precision": null,
+  "account_recall": 0.0,
+  "account_f1": null,
+  "groups_flagged": 0,
+  "batches": 2191,
+  "detect_ms_p50": 8.675,
+  "wall_s": 87.93,
+  "window_s": 1800.0
+}

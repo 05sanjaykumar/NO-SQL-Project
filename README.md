@@ -1,57 +1,300 @@
-# Real-Time Fraud Ring Detection using Graph Database Architecture
+# Hub-Aware Incremental Fraud Ring Detection on Streaming Transaction Graphs
+
+[![CI](https://github.com/au-revoir777/NO-SQL-Project/actions/workflows/ci.yml/badge.svg)](https://github.com/au-revoir777/NO-SQL-Project/actions/workflows/ci.yml)
 
 BCSE406L - NoSQL Databases
 Sanjay Kumar S (23BCE1248) · Roshan Parveen (23BCE1256)
 
-Detects fraud rings in a financial transaction graph using Neo4j and Cypher
-pattern matching, on a small controlled dataset with known planted rings.
+This project started as a small Neo4j course model: planted fraud rings and
+Cypher queries with a hard degree cap (see [Course baseline](#course-baseline)).
+It is now a streaming research system with these parts:
 
-## Run it
+- **Simulator:** a deterministic, real-time graph simulator. Legitimate users,
+  benign hubs (office wifi, carrier NAT, family devices) and fraud rings that
+  form, grow, mutate, evade and dissolve.
+- **Detection:** an incremental engine that re-evaluates only the part of the
+  graph each micro-batch touches, on Neo4j or an equivalent in-memory store.
+- **Hub-aware weighting:** replaces the hard degree cap, so a ring hiding behind
+  a busy hub can still be recovered while the hub's legitimate users are not
+  flagged.
+- **Explainable risk scoring:** a calibrated model gives every flag a reason,
+  feature contributions, an evidence subgraph and a counterfactual.
+- **Evaluation:** metrics against ground truth, structured logs, a
+  tamper-evident audit trail and deterministic replay.
+
+`master_prompt.md` is the specification. Milestone status is
+[at the bottom](#milestone-status).
+
+## Live dashboard
 
 ```bash
-./start.sh
+pip install -e ".[dev,redis]"
+make demo              # builds web/ (Node 18+) and serves it with the API -> http://localhost:8000/ui/
+make demo-docker       # or everything in containers: docker compose --profile app up --build
 ```
 
-Or straight from Docker, which is all `start.sh` does:
+Without `make` (Windows): `cd web && npm ci && npm run build && cd ..`, then
+`python -m fraudsim.cli api --port 8000`. A step-by-step guide, including a
+five-minute walkthrough for presenting, is in [docs/HOWTO.md](docs/HOWTO.md).
 
-```bash
-docker compose up -d --build
-```
+The dashboard runs any scenario live: the transaction graph grows as events
+arrive, rings form as red circles of transfers, and alerts pop into a queue
+ranked by calibrated risk. Click a ring to see:
+- why it was flagged;
+- its feature contributions, counterfactual, evidence subgraph and timeline;
+- confirm/dismiss buttons, which adapt the threshold and are audited.
 
-Both containers come up together, the dashboard waits for Neo4j to actually
-accept queries, and the graph is seeded automatically the first time. About
-20 seconds from a clean checkout. **Python is not needed on the host** - it
-runs inside the container.
+From the controls you can inject any ring type or evasion on demand, switch
+detectors, and retune the alert threshold and hub weighting live. The
+*Oracle view* overlays the answer key: correct flags, false alarms and missed
+rings. Details are in [`docs/dashboard.md`](docs/dashboard.md).
 
-Stop with `./stop.sh` or `docker compose down`. The graph survives in the
-Docker volume; add `-v` to wipe it and start fresh.
-
-Then open **http://localhost:8010** for the dashboard - buttons for each query,
-a slider for the degree threshold, and a control to regenerate the dataset at
-any size.
-
-Neo4j's own browser is still available at http://localhost:7474 (user `neo4j`,
-password `fraudring123`) if you want to paste Cypher directly from
-`queries.cypher`.
-
-Shut down with `docker compose down` (add `-v` to also wipe the data volume).
-
-## Files
-
-| File | What it does |
+| Live run (demo_story, seed 7) | Oracle view |
 |---|---|
-| `docker-compose.yml` | Neo4j 5.26, one service |
-| `seed.py` | Builds the graph and plants the fraud rings |
-| `queries.cypher` | The detection queries |
-| `start.sh` / `stop.sh` | Bring the whole project up or down in one command |
-| `Dockerfile` | Image for the dashboard service |
-| `app.py` | FastAPI service: runs queries, reseeds, scaling benchmark |
-| `static/index.html` | Dashboard - Cytoscape graph, query buttons, degree slider |
-| `paper/IEEE_PAPER.md` | Write-up in IEEE format |
-| `SETUP.md` | Docker and Neo4j setup, commands, troubleshooting |
-| `docs/PLAN.md` | Project plan and future scope |
+| ![Dashboard](docs/images/dashboard_live.jpg) | ![Oracle view](docs/images/dashboard_oracle.jpg) |
 
-## Data model
+![Ring drawer](docs/images/dashboard_oracle_drawer.jpg)
+
+## Offline demo (story replay)
+
+```bash
+pip install -e ".[dev]"
+make demo-story        # or: python -m fraudsim.cli demo-story --seed 7 --open
+```
+
+This writes `demo/story.html`, an offline, self-contained animated replay of a
+real run. A ring hides behind a 44-account office wifi, and the same events go
+through the original degree-capped Cypher rules (cap 10 and cap 100) and
+through the hub-aware system. The page has:
+- play/pause, speed, a scrubber and a detector switch;
+- an *answer key* that marks correct flags, false alarms and misses;
+- running scores, and alerts that pop up with their explanation at the batch
+  where they fired.
+
+Deep links jump to a moment, for example
+`story.html#t=60&det=cap10&key=1`.
+
+| Hub-aware system, end of run (answer key on) | Degree cap 10, end of run |
+|---|---|
+| ![Hub-aware](docs/images/demo_hubaware_t90.png) | ![Cap 10](docs/images/demo_cap10_t90.png) |
+
+These screenshots are from run `00434da7845b` (seed 7), using the logistic
+risk model trained on seeds 101–110. Over the same 2,512 events:
+
+| Approach | Rings caught | False rings | Innocent users flagged |
+|---|---|---|---|
+| Rules, cap 10 | 2 / 3 | 23 | 52 |
+| Rules, cap 100 | 2 / 3 | 24 | 74 |
+| Hub-aware + risk model | 3 / 3 | 2 | 8 |
+
+This is a single demonstration run. The cap rules reach the office ring only
+through a coincidental 3-cycle among its members; the shared-IP query skips it
+because of the cap. Multi-seed results are below.
+
+## Results (Milestone 8)
+
+All numbers come from `results/*/results.csv` (committed), produced by
+`scripts/run_paper_experiments.py` on test seeds 1001+; thresholds were chosen
+on separate validation seeds (`configs/tuned.json`). Every method sees the
+identical event stream per scenario and seed. Commands: [REPRODUCE.md](REPRODUCE.md).
+
+| 5 scenarios x 10 seeds | Ring precision | Ring recall | Ring F1 (mean, 95% CI) |
+|---|---|---|---|
+| **Hub-aware incremental (proposed)** | 0.76 | 0.74 | **0.73 ± 0.05** |
+| Proposed, a-priori thresholds | 0.73 | 0.69 | 0.68 ± 0.05 |
+| Louvain communities | 0.39 | 0.33 | 0.29 ± 0.06 |
+| Static Cypher, cap 10 | 0.14 | 0.61 | 0.21 ± 0.05 |
+| Static Cypher, cap 100 | 0.12 | 0.61 | 0.19 ± 0.05 |
+| Connected components | - | 0.00 | 0.00 |
+
+Every baseline is below the proposed method (paired Wilcoxon p < 0.001).
+
+<p align="center">
+  <img src="docs/paper/figures/fig1_pr_frontier.png" width="45%" alt="Precision/recall: degree cap vs hub weighting"/>
+  <img src="docs/paper/figures/fig2_latency_scaling.png" width="45%" alt="Latency vs graph size"/>
+</p>
+
+- **Degree cap vs hub weighting** (left, shared-attribute rings only): no
+  degree cap gets past recall 0.53 even with the scorer, while hub weighting
+  with the scorer reaches 0.81. At low recall the cap with the scorer is the
+  more precise, so the gain is reach, not dominance.
+- **Scale** (right): full recomputation grows from 0.16 s per batch at 1,000
+  users to 22.5 s at 100,000. The incremental dirty region stays below about
+  2,000 users, so a batch takes 36 ms at 100,000 users. 10^6 users did not fit
+  the 7.7 GB test laptop.
+- **Ablations**: removing the calibrated scorer (F1 0.72 -> 0.39) or the
+  hub-aware detector (-> 0.36) costs most. Incremental and full recomputation
+  flag identical rings.
+- **Limits**: rings that rotate identities or act low-and-slow evade every
+  method tested. The positive results are synthetic.
+- **Public data** (transaction rules only, no shared attributes in any public set):
+  on a 4-day AMLworld slice the rules match none of the 55 laundering attempts
+  inside it (account precision 0.03). Elliptic (acyclic, no amounts) and the
+  AMLSim samples (cycles not time-ordered) give no flags. Details:
+  [docs/datasets.md](docs/datasets.md).
+
+Paper: [`docs/paper/paper.pdf`](docs/paper/paper.pdf) (IEEE conference
+template; tables and the numbers in the text are generated, see `make tables`).
+
+## Reproduce the paper results
+
+```bash
+python -m fraudsim.cli experiment --suite tune --output-dir results/   # thresholds on validation seeds -> configs/tuned.json
+python scripts/run_paper_experiments.py                               # E1-E7 on test seeds -> results/*/results.csv
+make tables figures                                                   # docs/paper/tables, docs/paper/figures
+python scripts/make_architecture.py                                   # architecture.drawio -> .pdf/.png
+make paper                                                            # docs/paper/paper.pdf (needs LaTeX)
+```
+
+[REPRODUCE.md](REPRODUCE.md) has the seeds, the run times and what each
+experiment answers. Every result row carries its run id, scenario hash, method
+hash and event-stream digest, every table carries the sha256 of its source
+CSV, and CI regenerates the tables from the committed results and fails if they
+differ.
+
+## Architecture
+
+![Architecture](docs/paper/figures/architecture.png)
+
+The figure is generated from `docs/paper/figures/architecture.drawio`
+(editable in draw.io) by `scripts/make_architecture.py`. Module-level view:
+
+```mermaid
+flowchart LR
+  subgraph Simulator
+    SC[Scenario YAML] --> GEN[EventGenerator<br/>benign users, hubs, ring agents,<br/>evasion, adaptive attacker]
+    GEN --> GT[(Ground-truth ledger)]
+  end
+  GEN -->|events| PLAY[StreamPlayer<br/>rate · pause · speed]
+  PLAY --> BUS[[Event bus<br/>asyncio / Redis Streams]]
+  BUS --> ENG
+  subgraph ENG[DetectionEngine - per micro-batch]
+    ING[ingest] --> DIRTY[dirty set<br/>k-hop, hub-capped] --> VIEW[region view]
+    VIEW --> HA[Hub-aware] & CY[Temporal cycle] & SM[Smurfing]
+    FULL[timer: static Cypher Q1-Q4b,<br/>GDS Louvain/WCC] --> TR
+    HA & CY & SM --> TR[Ensemble tracker<br/>stable ids, hysteresis]
+    TR --> SCORE[Risk model + explanations<br/>early warning, alerts]
+  end
+  ING --> STORE[(Neo4j 5.26 + GDS<br/>or in-memory store)]
+  STORE --> VIEW
+  SCORE --> LOGS[events / detections / metrics logs<br/>hash-chained audit]
+  SCORE --> API[FastAPI + WebSocket]
+  SCORE -->|flags| GEN
+  GT --> EVAL[Metrics vs ground truth]
+  LOGS --> REPLAY[Deterministic replay]
+```
+
+| Package | Contents |
+|---|---|
+| `src/fraudsim/simulator/` | Config, world state, ring agents, event generator, stream player, recorder |
+| `src/fraudsim/stream/` | Event bus (asyncio queue, Redis Streams) |
+| `src/fraudsim/graph/` | Neo4j client, `GraphStore` contract, Neo4j and in-memory stores |
+| `src/fraudsim/detectors/` | Detectors, ensemble/tracker, engine, closed-loop runner |
+| `src/fraudsim/scoring/` | Features, calibrated scorer, explanations, early warning, training |
+| `src/fraudsim/metrics/` | Evaluation vs ground truth, exporters (CSV/Parquet/Prometheus) |
+| `src/fraudsim/logging/` | Run logs, audit trail, replay |
+| `src/fraudsim/api/` | FastAPI app, live run, WebSocket |
+| `src/fraudsim/demo/` | `demo-story` page builder |
+| `src/fraudsim/experiments/` | Experiment harness, threshold tuning, suite (E1-E7), statistics, figures, LaTeX tables |
+| `src/fraudsim/datasets/` | Loaders for IBM AMLworld, Elliptic, IBM AMLSim samples, PaySim |
+| `web/` | Live dashboard (React, Vite, TypeScript, Cytoscape.js, Recharts) |
+| `configs/scenarios/` | baseline, high_noise, hub_heavy, adversarial, scale_sweep, drift, demo_story |
+
+Design notes are in [`docs/simulator.md`](docs/simulator.md),
+[`docs/detection.md`](docs/detection.md), [`docs/scoring.md`](docs/scoring.md),
+[`docs/metrics.md`](docs/metrics.md), [`docs/logging.md`](docs/logging.md) and
+[`docs/dashboard.md`](docs/dashboard.md).
+
+## Quick start
+
+Requirements: Python 3.11, Node.js 18+ for the dashboard, and Docker Desktop
+for Neo4j and Redis (the in-memory store works without Docker).
+
+```bash
+pip install -e ".[dev,redis]"
+docker compose up -d                  # Neo4j 5.26 + GDS on 7474/7687, Redis on 6379
+```
+
+```bash
+fraudsim simulate --scenario adversarial --seed 7            # stream + ground truth -> runs/<id>/
+fraudsim detect   --scenario adversarial --seed 42           # simulate + detect + score + metrics + logs
+fraudsim detect   --scenario scale_sweep --backend neo4j     # same on a live Neo4j
+fraudsim replay   runs/<run_id>                              # re-run detection, must be identical
+fraudsim audit-verify runs/<run_id>                          # check the audit hash chain
+fraudsim compare-latency --scenario scale_sweep --seed 42    # incremental vs full recompute
+fraudsim train-scorer --model logistic_regression            # (re)train the risk model
+fraudsim run --scenario baseline --speed 10                  # live JSON event stream
+fraudsim api                                                  # FastAPI on :8000, dashboard at /ui (after `make web`)
+```
+
+The commands above assume `pip install -e .`. Without installing, use
+`PYTHONPATH=src python -m fraudsim.cli ...`.
+
+Each `detect` run writes `runs/<run_id>/`:
+- `events.jsonl`, `detections.jsonl`, `metrics.jsonl` and `errors.log`;
+- `audit.jsonl`;
+- `batches.jsonl` and `rings.jsonl`;
+- `ground_truth*.jsonl`;
+- `metrics/` (summary.json, CSV/Parquet tables, Prometheus text);
+- `manifest.json` (seed, config hash, stream digest, model SHA-256).
+
+## Tests
+
+```bash
+make test-unit                     # no services needed
+pytest -m integration              # needs `docker compose up -d`
+make lint
+```
+
+Besides unit tests for every detector on hand-built micro-graphs, there are
+property tests for ring matching (`tests/test_properties.py`, hypothesis),
+determinism and replay tests, and a headless 60-second scenario run that checks
+the metrics it produces (`tests/test_headless_scenario.py`). The latest report
+is `docs/reports/m9_test_report.txt`.
+
+CI (GitHub Actions, `.github/workflows/ci.yml`) runs lint, unit tests, the
+Neo4j/GDS and Redis integration tests against service containers, a one-seed
+smoke experiment that regenerates tables and figures, a check that the
+committed paper tables match the committed results, the dashboard build, and
+the all-in-one Docker image.
+
+## Milestone status
+
+| Milestone | Status |
+|---|---|
+| M1 Architecture and repo layout | done (unsourced paper numbers replaced by placeholders) |
+| M2 Real-time graph simulator | done |
+| M3 Incremental detection engine | done |
+| M4 Scoring and explainability (+ `demo-story`) | done |
+| M5 Metrics | done |
+| M6 Logging, audit and replay | done |
+| M7 Live React dashboard | done |
+| M8 Experiments, statistics, paper, public-data loaders | done (see Results above and `docs/paper/`) |
+| M9 Quality bar (tests, CI, README, how-to) | done |
+
+Known open items:
+- Paper: check the bibliography entries against the publishers' pages before submission.
+- Public data has no shared-attribute links, so hub-aware weighting is untested on real data (see [docs/datasets.md](docs/datasets.md)).
+
+---
+
+## Course baseline
+
+The original course model is unchanged and still runs on its own. It is also
+replayed by the new pipeline as `EventGenerator.generate_seed_events()`.
+
+```bash
+docker compose up -d neo4j
+pip install -r requirements.txt
+python seed.py
+```
+
+Then open http://localhost:7474 (user `neo4j`, password `fraudring123`), and
+paste queries from `queries.cypher` one block at a time. Setup help is in
+[`SETUP.md`](SETUP.md), and the original plan is in
+[`docs/PLAN.md`](docs/PLAN.md).
+
+### Data model
 
 ```
 (:User)-[:USED_DEVICE]->(:Device)
@@ -70,7 +313,7 @@ would close a loop are rejected. Without those caps, chance alone puts three
 users on the same device and the accidental clusters look identical to a planted
 ring. Every group of three or more in the results is deliberate.
 
-## What is planted
+### What is planted
 
 | | Pattern | Expected result |
 |---|---|---|
@@ -90,7 +333,7 @@ Every user carries a `ring` property recording which planted ring it belongs to,
 `null` for legitimate users. No detection query reads it - it exists only so the
 results can be checked.
 
-## The degree cap
+### The degree cap
 
 `ip_001` is shared by twelve ordinary users. Any naive shared-attribute query
 treats that as a twelve-member fraud ring.
@@ -101,55 +344,53 @@ Q4a returns ring C plus twelve false positives; Q4b returns ring C alone.
 The cost: a genuine ring hiding behind a busy node gets skipped too. Precision
 bought with recall.
 
-## Results
+### Results (course baseline)
 
-Save screenshots into `images/` with these names and they appear below.
-Crop to the result panel, and keep the timing line ("completed after N ms")
-visible - it is measured evidence for the performance claim in the report.
+Screenshots from the Neo4j browser on the seeded graph.
 
-### The full graph (Q0)
+#### The full graph (Q0)
 
 126 nodes, 185 relationships.
 
 ![Full graph](images/q0-full-graph.png)
 
-### Shared device ring (Q1)
+#### Shared device ring (Q1)
 
 Four users on `device_007`.
 
 ![Shared device ring](images/q1-device-ring.png)
 
-### Shared card ring (Q2)
+#### Shared card ring (Q2)
 
 Three users on `card_005`.
 
 ![Shared card ring](images/q2-card-ring.png)
 
-### Circular money flow (Q3)
+#### Circular money flow (Q3)
 
 u21 to u22 to u23 and back.
 
 ![Money cycle](images/q3-money-cycle.png)
 
-### Degree cap off (Q4a)
+#### Degree cap off (Q4a)
 
 Ring C found, plus twelve false positives from the shared office IP.
 
 ![No degree cap](images/q4a-no-cap.png)
 
-### Degree cap on (Q4b)
+#### Degree cap on (Q4b)
 
 Same query, threshold changed from 100 to 10. False positives gone.
 
 ![Degree cap applied](images/q4b-with-cap.png)
 
-### Summary (Q5)
+#### Summary (Q5)
 
 ![Summary table](images/q5-summary.png)
 
 ---
 
-## Measured result: the degree cap
+### Measured result: the degree cap
 
 Q4a and Q4b are the same query. The only difference is the degree threshold,
 changed from 100 to 10. Measured in the Neo4j browser on the seeded graph:

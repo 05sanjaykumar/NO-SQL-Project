@@ -54,6 +54,32 @@ the browser login form.
 
 ---
 
+## Quickest way
+
+```bash
+./start.sh
+```
+
+That does everything in one command: starts Docker Desktop if it is not
+running, brings up Neo4j and the dashboard, waits for the database to accept
+queries, and seeds the graph on first run. Then open
+http://localhost:8010. `./stop.sh` shuts it down.
+
+Both services run in containers, so **nothing needs installing on your machine
+except Docker Desktop** - no Python, no virtualenv, no packages.
+
+Useful afterwards:
+
+| Command | What it does |
+|---|---|
+| `docker compose logs -f dashboard` | Watch the dashboard's output |
+| `docker compose restart dashboard` | Pick up code edits (no rebuild needed) |
+| `docker compose up -d --build` | Rebuild after changing `requirements.txt` |
+| `docker compose down -v` | Wipe the graph and start over |
+
+The rest of this file explains what those steps actually do, and what to try
+when one of them fails.
+
 ## First time setup
 
 Run these from inside the project folder.

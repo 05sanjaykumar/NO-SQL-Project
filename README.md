@@ -317,11 +317,17 @@ ring. Every group of three or more in the results is deliberate.
 
 | | Pattern | Expected result |
 |---|---|---|
-| Ring A | u01, u02, u03, u04 share `device_007` | found by Q1 |
-| Ring B | u10, u11, u12 share `card_005` | found by Q2 |
+| Device ring | u01, u02, u03, u04 share `device_007` | found by Q1 |
+| Card ring | u10, u11, u12 share `card_005` | found by Q2 |
 | Cycle | u21 → u22 → u23 → u21 | found by Q3 |
-| Ring C | u27, u28, u29 share `ip_004` | found by Q4a and Q4b |
+| IP ring | u27, u28, u29 share `ip_004` | found by Q4a and Q4b |
 | Hub | 12 users share `ip_001` | **not fraud** - office wifi |
+
+Above about 300 users the generator plants additional rings of each type, with
+three to five members each, so the fraudulent fraction stays near 8% instead of
+thinning out. At 600 users there are four rings of each type and two cycles; the
+structures listed above stay at fixed positions so the default dataset is always
+reproducible.
 
 Every user carries a `ring` property recording which planted ring it belongs to,
 `null` for legitimate users. No detection query reads it - it exists only so the
@@ -401,6 +407,28 @@ changed from 100 to 10. Measured in the Neo4j browser on the seeded graph:
 Twelve of the fifteen users Q4a flags are innocent - they share `ip_001`, the
 office wifi. The cap removes all twelve, and the query also runs about four
 times faster because it stops expanding the hub node at all.
+
+### The same experiment across dataset sizes
+
+Type a bigger number in the dataset box and hit **Generate**. Both the office
+hub and the number of planted rings scale with the population, so the fraudulent
+fraction stays near 8%:
+
+| Users | Nodes | IP rings | False positives without bound | With bound |
+|---|---|---|---|---|
+| 30 | 126 | 1 | 12 | 0 |
+| 200 | 840 | 1 | 63 | 0 |
+| 1000 | 4197 | 6 | 330 | 0 |
+| 3000 | 12590 | 20 | 997 | 0 |
+
+Without the bound you hand an analyst a review queue that grows with your
+customer base rather than with the amount of fraud. With it, precision is 100%
+at every size.
+
+Recall stays at 100% in every row - at 3000 users that is 75 ring members across
+20 rings, not a single cluster. But it holds only because every planted ring sits
+behind a low-degree artefact by construction. A ring sharing a busy node would be
+skipped by the same rule that removes the false positives.
 
 Recall stays at 100% here only because ring C sits behind a low-degree IP. That
 is a property of this dataset, not a guarantee: a real ring hiding behind a busy

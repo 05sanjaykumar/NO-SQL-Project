@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fraud Ring Detection</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<style>
+  :root{--bg:#14161a;--panel:#1c1f26;--line:#2b2f38;--fg:#e6e8ec;--dim:#9aa1ad;--acc:#4f9cf9;--bad:#e2574c;--ok:#3fb27f}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--fg)}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;gap:24px;align-items:baseline;flex-wrap:wrap}
+  h1{font-size:16px;font-weight:600;margin:0}
+  .stat{color:var(--dim);font-size:13px}
+  .stat b{color:var(--fg);font-weight:600}
+  main{display:grid;grid-template-columns:270px 1fr;gap:0;height:calc(100vh - 53px)}
+  aside{border-right:1px solid var(--line);padding:16px;overflow-y:auto}
+  section{position:relative}
+  h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:20px 0 8px;font-weight:600}
+  h2:first-child{margin-top:0}
+  button{width:100%;text-align:left;padding:9px 11px;margin-bottom:6px;background:var(--panel);color:var(--fg);
+         border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:13px}
+  button:hover{border-color:var(--acc)}
+  button.on{border-color:var(--acc);background:#20293a}
+  button small{display:block;color:var(--dim);font-size:11px;margin-top:2px;line-height:1.35}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  input[type=number]{flex:1;padding:7px 9px;background:var(--panel);border:1px solid var(--line);
+                     border-radius:6px;color:var(--fg);font-size:13px}
+  input[type=range]{width:100%;accent-color:var(--acc)}
+  .go{width:auto;padding:7px 14px;margin:0;white-space:nowrap}
+  #cy{width:100%;height:100%}
+  #metrics{position:absolute;top:14px;right:14px;background:var(--panel);border:1px solid var(--line);
+           border-radius:8px;padding:12px 14px;min-width:190px;font-size:13px}
+  #metrics div{display:flex;justify-content:space-between;gap:16px;padding:2px 0}
+  #metrics span{color:var(--dim)}
+  #busy{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+        background:rgba(20,22,26,.8);font-size:13px;color:var(--dim)}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+  th,td{text-align:right;padding:4px 6px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--dim);font-weight:500}
+  .note{color:var(--dim);font-size:11px;line-height:1.5;margin-top:8px}
+  #metrics .hint{display:block;color:var(--dim);font-size:11px;line-height:1.4;margin-top:6px;max-width:170px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Fraud Ring Detection</h1>
+  <div class="stat">Loaded: <b id="s-users">–</b> users · <b id="s-nodes">–</b> nodes · <b id="s-rels">–</b> relationships</div>
+  <div class="stat" id="s-query"></div>
+</header>
+
+<main>
+<aside>
+  <h2>Dataset</h2>
+  <div class="row">
+    <input type="number" id="nusers" value="30" min="30" max="5000" step="10">
+    <button class="go" id="reseed">Generate</button>
+  </div>
+  <div class="note">Shows what is currently loaded. Change it and press Generate to rebuild at that size. Above ~300 users extra rings are planted so fraud stays near 8% of the population.</div>
+
+  <h2>Queries</h2>
+  <div id="buttons"></div>
+
+  <h2>Degree threshold</h2>
+  <input type="range" id="degree" min="3" max="60" value="10">
+  <div class="row" style="justify-content:space-between">
+    <span class="stat">cap = <b id="degval">10</b></span>
+    <span class="stat" id="degstate"></span>
+  </div>
+  <div class="note">Applies to the shared-IP query. Drag it past the hub size and the office gateway floods the result.</div>
+
+  <h2>Scaling benchmark</h2>
+  <button id="scale">Run benchmark</button>
+  <div id="scaleout"></div>
+  <div class="note">Regenerates at each size and times two query shapes. Takes a minute.</div>
+</aside>
+
+<section>
+  <div id="cy"></div>
+  <div id="metrics"></div>
+  <div id="busy">working…</div>
+</section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const COLOR = {User:'#63b3ed', Device:'#9f7aea', CreditCard:'#ed64a6', IPAddress:'#4fd1c5', Transaction:'#68d391'};
+let queries = [], current = 'q0';
+
+const cy = cytoscape({
+  container: $('#cy'),
+  style: [
+    {selector:'node', style:{
+      'background-color': n => n.data('ring') ? '#e2574c' : (COLOR[n.data('label')] || '#888'),
+      'label':'data(caption)','color':'#e6e8ec','font-size':'9px',
+      'text-valign':'center','text-halign':'center','width':26,'height':26,
+      'border-width': n => n.data('ring') ? 2 : 0, 'border-color':'#ff9b94'}},
+    {selector:'edge', style:{
+      'width':1,'line-color':'#3a4150','target-arrow-color':'#3a4150',
+      'target-arrow-shape':'triangle','curve-style':'bezier','arrow-scale':.7}}
+  ]
+});
+
+function busy(on){ $('#busy').style.display = on ? 'flex' : 'none'; }
+
+async function stats(){
+  const d = await (await fetch('/api/stats')).json();
+  $('#s-nodes').textContent = d.nodes.toLocaleString();
+  $('#s-rels').textContent = d.relationships.toLocaleString();
+  $('#s-users').textContent = d.users.toLocaleString();
+  // Keep the box showing what is actually loaded, not whatever was last typed.
+  $('#nusers').value = d.users;
+}
+
+async function loadQueries(){
+  queries = await (await fetch('/api/queries')).json();
+  $('#buttons').innerHTML = queries.map(q =>
+    `<button data-id="${q.id}"><b>${q.label}</b><small>${q.note}</small></button>`).join('');
+  document.querySelectorAll('#buttons button').forEach(b =>
+    b.onclick = () => run(b.dataset.id));
+}
+
+async function run(id){
+  current = id;
+  document.querySelectorAll('#buttons button').forEach(b =>
+    b.classList.toggle('on', b.dataset.id === id));
+  busy(true);
+  const deg = $('#degree').value;
+  const d = await (await fetch(`/api/run/${id}?max_degree=${deg}`)).json();
+  busy(false);
+
+  cy.elements().remove();
+  cy.add(d.nodes.map(n => ({data:n})));
+  cy.add(d.edges.map(e => ({data:e})));
+  cy.layout({name:'cose', animate:false, nodeRepulsion:9000, idealEdgeLength:60}).run();
+
+  const q = queries.find(x => x.id === id);
+  $('#s-query').textContent = q ? q.label : '';
+  const scoring = d.scores ? `
+    <div><span>users flagged</span><b>${d.flagged_users}</b></div>
+    <div><span>true positives</span><b style="color:var(--ok)">${d.true_positives}</b></div>
+    <div><span>false positives</span><b style="color:${d.false_positives?'var(--bad)':'var(--fg)'}">${d.false_positives}</b></div>
+    ${d.precision!==null?`<div><span>precision</span><b>${d.precision}%</b></div>`:''}`
+   : `<div><span>users shown</span><b>${d.flagged_users}</b></div>
+      <div class="hint">This view does not look for a ring, so there is nothing to score.</div>`;
+  $('#metrics').innerHTML = `
+    <div><span>time</span><b>${d.ms} ms</b></div>
+    <div><span>nodes drawn</span><b>${d.nodes.length}</b></div>
+    ${scoring}`;
+}
+
+$('#degree').oninput = e => {
+  $('#degval').textContent = e.target.value;
+  $('#degstate').textContent = '';
+};
+$('#degree').onchange = () => { if (current === 'q4') run('q4'); };
+
+$('#reseed').onclick = async () => {
+  busy(true);
+  const n = $('#nusers').value;
+  const d = await (await fetch(`/api/seed?users=${n}`, {method:'POST'})).json();
+  busy(false);
+  if (d.error) { alert(d.error); return; }
+  $('#degree').max = Math.max(60, d.truth.hub.size + 20);
+  await stats();
+  run(current);
+};
+
+$('#scale').onclick = async () => {
+  busy(true);
+  $('#scaleout').innerHTML = '';
+  const d = await (await fetch('/api/scale')).json();
+  busy(false);
+  $('#scaleout').innerHTML = `<table>
+    <tr><th>users</th><th>nodes</th><th>scan</th><th>anchored</th></tr>
+    ${d.rows.map(r=>`<tr><td>${r.users}</td><td>${r.nodes}</td>
+      <td>${r.scan} ms</td><td>${r.anchored} ms</td></tr>`).join('')}</table>
+    <div class="note">scan touches every user. anchored starts at one user and expands.
+    The anchored column is the one that should stay flat.</div>`;
+  await stats();
+};
+
+(async () => { await loadQueries(); await stats(); run('q0'); })();
+</script>
+</body>
+</html>

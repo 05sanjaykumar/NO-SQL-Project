@@ -21,6 +21,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      # Neo4j with the GDS plugin needs ~60s on a cold start, which is longer
+      # than retries x interval allows. Without this the container is marked
+      # unhealthy on first boot and the app refuses to start.
+      start_period: 90s
 
   # The API + dashboard in a container. Not started by a plain `docker compose up`
   # (which brings up Neo4j and Redis for `make demo` on the host); start it with

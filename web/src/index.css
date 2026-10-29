@@ -151,3 +151,11 @@ select, input[type=number] { background: var(--bg); border: 1px solid var(--line
   padding: 1px 6px; border-radius: 999px;
   border: 1px solid var(--line, #2b2f38); opacity: .8;
 }
+
+/* ---- focus bar: shown whenever the graph is narrowed ---- */
+.focus-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 5px 9px; margin: 0 0 6px; font-size: 12px;
+  border: 1px solid var(--accent, #4f9cf9); border-radius: 6px;
+  background: color-mix(in srgb, var(--accent, #4f9cf9) 12%, transparent);
+}

@@ -17,6 +17,8 @@ interface Props {
   oracle: boolean;
   selectedRing: string | null;
   onSelectRing: (ringId: string) => void;
+  /** When set, draw only these accounts and what they reach within `hops`. */
+  focus?: { user_ids: string[]; hops: number } | null;
 }
 
 const css = (v: string) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -51,7 +53,7 @@ function style(): cytoscape.Stylesheet[] {
 }
 
 export const GraphView = forwardRef<GraphHandle, Props>(function GraphView(
-  { snapshot, oracle, selectedRing, onSelectRing },
+  { snapshot, oracle, selectedRing, onSelectRing, focus },
   ref,
 ) {
   const host = useRef<HTMLDivElement>(null);
@@ -103,9 +105,27 @@ export const GraphView = forwardRef<GraphHandle, Props>(function GraphView(
       connected.add(e.source);
       connected.add(e.target);
     }
-    const nodes = snapshot.nodes.filter(
-      (n) => n.kind !== 'user' || connected.has(n.id) || (n.rings ?? []).length > 0 || (oracle && n.truth),
-    );
+    // A focus narrows the view to some accounts plus whatever they reach within
+    // `hops`. One hop is usually what you want: it keeps the shared device or IP
+    // that links them, which is the whole point of looking.
+    const focused = focus?.user_ids?.length ? new Set(focus.user_ids) : null;
+    let visible: Set<string> | null = null;
+    if (focused) {
+      visible = new Set(focused);
+      for (let h = 0; h < Math.max(0, focus?.hops ?? 1); h++) {
+        const edge = new Set(visible);
+        for (const e of snapshot.edges) {
+          if (edge.has(e.source)) visible.add(e.target);
+          if (edge.has(e.target)) visible.add(e.source);
+        }
+      }
+    }
+
+    const nodes = snapshot.nodes.filter((n) => {
+      if (visible && !visible.has(n.id)) return false;
+      if (focused?.has(n.id)) return true;
+      return n.kind !== 'user' || connected.has(n.id) || (n.rings ?? []).length > 0 || (oracle && n.truth);
+    });
     // Groups (rings, hubs) and their slots; computed first so edges can be filtered.
     const { pos: positions, groupOf } = clusterLayout(nodes, snapshot.edges, oracle);
     cy.batch(() => {

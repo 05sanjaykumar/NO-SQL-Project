@@ -57,6 +57,8 @@ ALLOWED_TOOLS = [
     "mcp__fraudsim__get_metrics",
     "mcp__fraudsim__get_oracle",
     "mcp__fraudsim__recent_events",
+    "mcp__fraudsim__focus_graph",
+    "mcp__fraudsim__clear_focus",
     "mcp__fraudsim__send_feedback",
 ]
 
@@ -72,7 +74,8 @@ SYSTEM = (
     "returns nothing useful, say so plainly. Keep answers short - a few sentences - "
     "and quote the actual numbers you got back. get_oracle is the simulator's "
     "answer key: use it to check whether the detector was right, never to decide "
-    "what should be flagged."
+    "what should be flagged. When the user asks to see or look at something, call "
+    "focus_graph so the dashboard shows it while you explain."
 )
 
 _lock = asyncio.Lock()

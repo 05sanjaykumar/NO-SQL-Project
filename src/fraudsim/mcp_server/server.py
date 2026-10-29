@@ -201,6 +201,36 @@ def recent_events(limit: int = 30) -> list[dict[str, Any]]:
 
 
 @server.tool()
+def focus_graph(
+    ring_id: str | None = None,
+    user_ids: list[str] | None = None,
+    note: str = "",
+    hops: int = 1,
+) -> dict[str, Any]:
+    """
+    Narrow the dashboard's graph to these accounts, hiding everything else.
+
+    Give a ring_id, or a list of user_ids, or both. hops keeps whatever they
+    connect to directly, so the shared device or IP that links them stays
+    visible - with hops=0 you see the accounts but not what joins them.
+
+    Use this when the user asks to see something: answering "why did this ring
+    alert?" is much clearer if the graph is showing that ring while you explain
+    it. `note` is shown on screen as the reason for the current view.
+    """
+    return _call(
+        "POST", "/view/focus",
+        json={"ring_id": ring_id, "user_ids": user_ids or [], "note": note, "hops": hops},
+    )
+
+
+@server.tool()
+def clear_focus() -> dict[str, Any]:
+    """Show the whole graph again, undoing focus_graph."""
+    return _call("POST", "/view/focus/clear")
+
+
+@server.tool()
 def send_feedback(ring_id: str, action: str) -> dict[str, Any]:
     """
     Act as the analyst on an alert. action is 'confirm' or 'dismiss'.

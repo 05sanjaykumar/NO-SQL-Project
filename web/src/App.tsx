@@ -38,6 +38,7 @@ export default function App() {
   const [events, setEvents] = useState<BatchMsg['events']>([]);
   const [notices, setNotices] = useState<{ t: number; text: string; kind: string }[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [focus, setFocus] = useState<{ user_ids: string[]; hops: number; note: string; ring_id: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const graph = useRef<GraphHandle>(null);
   const detectMs = useRef<number[]>([]);
@@ -52,6 +53,11 @@ export default function App() {
   useEffect(() => {
     getJSON<Scenario[]>('/scenarios').then(setScenarios).catch((e) => setError(String(e)));
     getJSON<typeof catalog>('/catalog').then(setCatalog).catch(() => undefined);
+    // The focus is server state and survives a reload, so pick it up on mount -
+    // the WebSocket only carries later changes.
+    getJSON<{ active: boolean; user_ids: string[]; hops: number; note: string; ring_id: string | null }>('/view/focus')
+      .then((f) => setFocus(f.active ? f : null))
+      .catch(() => undefined);
     refreshStatus();
     refreshLive();
     const stop = connectWs((msg) => {
@@ -77,6 +83,8 @@ export default function App() {
             : `${u.change.replace('_', ' ')} ${u.ring_id} · ${u.members.length} users`;
           setNotices((n) => [...n.slice(-200), { t: simT.current, text, kind: u.change }]);
         }
+      } else if (msg.type === 'VIEW_FOCUS') {
+        setFocus(msg.active ? { user_ids: msg.user_ids, hops: msg.hops, note: msg.note, ring_id: msg.ring_id } : null);
       } else if (msg.type === 'RING_INJECTED') {
         setNotices((n) => [...n, { t: simT.current, text: `injected ${msg.ring_type} (${msg.evasion}, ${msg.size}) as ${msg.ring_id}`, kind: 'inject' }]);
       } else if (['RUN_STARTED', 'RUN_PAUSED', 'RUN_RESUMED', 'RUN_STOPPED', 'RUN_SPEED'].includes(msg.type)) {
@@ -97,6 +105,13 @@ export default function App() {
     const id = window.setInterval(tick, 1200);
     return () => window.clearInterval(id);
   }, [oracle, refreshStatus]);
+
+  // Re-frame whenever the focus changes: a narrowed graph is usually off-screen
+  // at the previous zoom, which looks like an empty panel.
+  useEffect(() => {
+    const id = window.setTimeout(() => graph.current?.fit(), 120);
+    return () => window.clearTimeout(id);
+  }, [focus]);
 
   const act = async (fn: () => Promise<unknown>) => {
     try {
@@ -144,7 +159,16 @@ export default function App() {
             </span>
             <button className="btn small" onClick={() => graph.current?.fit()}>fit</button>
           </div>
-          <GraphView ref={graph} snapshot={snapshot} oracle={oracle} selectedRing={selected} onSelectRing={setSelected} />
+          {focus && (
+            <div className="focus-bar">
+              <span>
+                Focused on {focus.user_ids.length} account{focus.user_ids.length === 1 ? '' : 's'}
+                {focus.note ? ` — ${focus.note}` : ''}
+              </span>
+              <button className="btn small" onClick={() => act(() => postJSON('/view/focus/clear'))}>show everything</button>
+            </div>
+          )}
+          <GraphView ref={graph} snapshot={snapshot} oracle={oracle} selectedRing={selected} onSelectRing={setSelected} focus={focus} />
           <div className="legend">
             {oracle ? (
               <>

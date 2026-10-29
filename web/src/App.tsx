@@ -134,6 +134,7 @@ export default function App() {
         onExport={(k) => (k === 'png' ? graph.current?.exportPng() : graph.current?.exportSvg())}
       />
       {error && <div className="error banner" onClick={() => setError(null)}>{error}</div>}
+      <AskPanel />
       <main className="grid">
         <section className="panel graph-panel">
           <div className="panel-h">
@@ -171,7 +172,6 @@ export default function App() {
           <MetricsCards summary={summary} oracle={snapshot.oracle} showOracle={oracle}
             graphInfo={{ shown: snapshot.shown_users, total: snapshot.total_active_users }} />
           <AlertQueue rings={rings} oracle={snapshot.oracle} showOracle={oracle} selected={selected} onSelect={setSelected} />
-          <AskPanel />
         </div>
         <LatencyChart data={series} />
         <ThroughputChart data={series} />

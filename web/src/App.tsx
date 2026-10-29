@@ -11,6 +11,7 @@ import type {
   BatchMsg, DetectorInfo, GraphSnapshot, LiveConfig, MetricsSummaryFull, Ring, RingUpdateMsg,
   Scenario, Status,
 } from './types';
+import AskPanel from './components/AskPanel';
 
 const EMPTY: GraphSnapshot = { nodes: [], edges: [], shown_users: 0, total_active_users: 0 };
 
@@ -170,6 +171,7 @@ export default function App() {
           <MetricsCards summary={summary} oracle={snapshot.oracle} showOracle={oracle}
             graphInfo={{ shown: snapshot.shown_users, total: snapshot.total_active_users }} />
           <AlertQueue rings={rings} oracle={snapshot.oracle} showOracle={oracle} selected={selected} onSelect={setSelected} />
+          <AskPanel />
         </div>
         <LatencyChart data={series} />
         <ThroughputChart data={series} />

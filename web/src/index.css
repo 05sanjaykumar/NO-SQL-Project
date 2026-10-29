@@ -128,3 +128,26 @@ select, input[type=number] { background: var(--bg); border: 1px solid var(--line
 .members { margin-top: 10px; word-break: break-word; }
 .error { color: var(--fraud); font-size: 13px; }
 .error.banner { margin: 8px 16px 0; padding: 8px 12px; background: var(--fraud-soft); border-radius: 8px; cursor: pointer; }
+
+/* ---- Ask panel: plain-English questions about the live run ---- */
+.ask-panel { display: flex; flex-direction: column; gap: 8px; }
+.ask-suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
+.ask-suggestions .btn { font-size: 11px; }
+.ask-input {
+  width: 100%; resize: vertical; font: inherit; font-size: 13px;
+  padding: 8px; border-radius: 6px;
+  background: var(--bg, #14161a); color: inherit;
+  border: 1px solid var(--line, #2b2f38);
+}
+.ask-input:focus { outline: none; border-color: var(--accent, #4f9cf9); }
+.ask-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ask-thinking, .ask-unavailable { font-size: 12px; opacity: .7; margin: 4px 0; }
+.ask-error { font-size: 12px; color: var(--fraud, #e2574c); margin: 4px 0; }
+.ask-answer { border-top: 1px solid var(--line, #2b2f38); padding-top: 8px; }
+.ask-answer p { margin: 0 0 6px; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+.ask-tools { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.ask-tool {
+  font-family: ui-monospace, monospace; font-size: 10px;
+  padding: 1px 6px; border-radius: 999px;
+  border: 1px solid var(--line, #2b2f38); opacity: .8;
+}

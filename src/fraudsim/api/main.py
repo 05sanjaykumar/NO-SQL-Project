@@ -39,6 +39,12 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# Plain-English questions about the live run, answered by the local Claude Code
+# CLI through the fraudsim MCP tools. Unavailable (and says so) without the CLI.
+from fraudsim.api.assistant import router as assistant_router  # noqa: E402
+
+app.include_router(assistant_router)
+
 # Enable CORS for dashboard development
 app.add_middleware(
     CORSMiddleware,

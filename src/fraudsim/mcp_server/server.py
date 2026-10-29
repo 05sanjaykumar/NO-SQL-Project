@@ -125,9 +125,35 @@ def inject_ring(ring_type: str = "shared_device", evasion: str = "none", size: i
 
 
 @server.tool()
-def list_rings() -> list[dict[str, Any]]:
-    """Every ring the detector currently holds, with its risk score and status."""
-    return _call("GET", "/rings")
+def list_rings(limit: int = 25, status: str | None = None) -> dict[str, Any]:
+    """
+    The rings the detector currently holds, highest risk first.
+
+    Returns a compact row per ring - full features, explanation and evidence are
+    omitted here; call explain_ring for one of them. status filters to e.g.
+    "confirmed" or "candidate".
+
+    The full ring list runs to hundreds of thousands of characters on a busy
+    run, so this is summarised and capped by design.
+    """
+    rings = _call("GET", "/rings")
+    if status:
+        rings = [r for r in rings if r.get("status") == status]
+    rings.sort(key=lambda r: r.get("score") or 0.0, reverse=True)
+    rows = [
+        {
+            "ring_id": r.get("ring_id"),
+            "ring_type": r.get("ring_type"),
+            "status": r.get("status"),
+            "score": round(r.get("score") or 0.0, 4),
+            "members": len(r.get("members") or []),
+        }
+        for r in rings[: max(1, limit)]
+    ]
+    by_status: dict[str, int] = {}
+    for r in rings:
+        by_status[str(r.get("status"))] = by_status.get(str(r.get("status")), 0) + 1
+    return {"total": len(rings), "by_status": by_status, "shown": len(rows), "rings": rows}
 
 
 @server.tool()

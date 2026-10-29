@@ -26,6 +26,8 @@ EXPECTED = {
     "get_metrics",
     "get_oracle",
     "recent_events",
+    "focus_graph",
+    "clear_focus",
     "send_feedback",
 }
 

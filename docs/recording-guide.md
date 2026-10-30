@@ -11,6 +11,31 @@ once to confirm everything works, press **Stop**, reload.
 
 ---
 
+## Segment 0 — The gap you are closing (45 s)
+
+Say this before you touch anything. It is what makes the rest look like research
+rather than a dashboard.
+
+> "A fraud ring is one person running many fake accounts. Each account looks
+> normal alone; what gives them away is what they share - a device, a card, an
+> IP. So you flag shared attributes. That breaks immediately, because offices,
+> carrier NAT and public kiosks legitimately share infrastructure with thousands
+> of innocent users."
+
+Then name the four gaps. One sentence each - do not elaborate on camera.
+
+| # | What the literature does | The gap |
+|---|---|---|
+| 1 | Hard shared-attribute links, or a fixed degree cap, or dropping the links for behavioural similarity (Yin et al. 2022) | Nobody keeps the cheap, explainable link and makes how much it counts *continuous* |
+| 2 | Densest-subgraph and core-peeling methods run over the whole static graph; incremental community detection updates communities | A benign hub joins thousands of users into one community - community structure is not ring structure |
+| 3 | GNN fraud detectors output per-node scores and need labelled training graphs; interpretability is still an open problem in that line | No ring-level, calibrated, explained alert |
+| 4 | Evasion is evaluated against the evasion strategies the authors wrote | You cannot test the attack you never imagined |
+
+> "Those four gaps are exactly what the four contributions answer, and you will
+> see each of them on this screen."
+
+---
+
 ## Segment 1 — The board (20 s)
 
 Do nothing. Just pan over the page.
@@ -161,7 +186,52 @@ busier on screen, so only if you have time.
 
 ---
 
-## Segment 9 — Close honestly (30 s)
+## Segment 9 — What is new, against what was there before (75 s)
+
+Press **Stop**. This segment is talking over a still screen - no clicking.
+
+First the four contributions, pointed at the thing on screen that shows each one.
+
+| Gap | What we did | Where it is on screen | Measured |
+|---|---|---|---|
+| 1 | **Hub-aware weighting** - the degree cap is replaced by a continuous weight: a shared attribute contributes `1/ln(1+d)`, with exponential time decay and intra-pair transfer weight | the **hub aware** tickbox you toggled in segment 6 | F1 **0.73** vs **0.21** for cap-10 and **0.29** for Louvain; reachable recall on shared-attribute rings **0.55 → 0.86** |
+| 2 | **Incremental detection** - peel only the region each micro-batch touched, instead of re-running whole-graph queries on a timer | the **Detection latency per batch** chart staying flat | **36 ms** per batch vs **22,501 ms** full recomputation at 100,000 users - **623×**, same rings flagged |
+| 3 | **Calibrated, explained alerts** - ring-level, not per-node, with feature contributions, an evidence subgraph and a counterfactual | the ring drawer from segment 4 | precision **0.76** at recall **0.74** |
+| 4 | **Evaluation under evasion** - five evasion strategies with ground truth, plus a red-team search over the space those five are points in | the **evasion** dropdown you used in segment 5 | ring recall by strategy (rings found / rings planted): `none` 91/110, `decoy_edges` 22/27, `hub_hiding` 35/52, `low_and_slow` 3/13, `identity_rotation` 4/14 |
+
+Then the honest line about the two you added on top:
+
+> "Two of these are ours on top of the detector. The question box queries the
+> live detector through MCP tools and re-draws the graph - that closes the gap
+> that no dashboard can pre-build every question an analyst will ask. And the
+> red-team search looks for evasions we did not write ourselves, which closes
+> gap four properly. The search runs and produces results, but the isolated
+> single-ring setup still needs validating against the full scenarios, so we are
+> not quoting an evasion rate from it yet."
+
+### If you want the before/after on the previous code
+
+Useful if the examiner asks what the project looked like earlier. Say it as
+project history, not as a claim.
+
+| First version | Now |
+|---|---|
+| `seed.py` - one fixed 126-node snapshot | streaming simulator, 100 to 100,000 users, rings that form, grow, mutate and evade |
+| `queries.cypher` - six queries pasted into Neo4j Browser by hand | continuous micro-batch engine, incremental peeling |
+| degree cap `< 10`, a hard cut (Q4b, comment: *"precision bought with recall"*) | continuous `1/ln(1+d)` weight, no cut |
+| a row either matched or it did not | calibrated risk score, feature contributions, counterfactual |
+| you eyeballed whether a row was a real ring | planted rings as an answer key; precision, recall, F1 and time-to-detect on screen |
+| `static/index.html` running those six queries | React dashboard: live graph, alert queue, oracle overlay, PNG/SVG export |
+| - | **Ask the system** - MCP-backed question box that also drives the graph |
+| - | **adversarial search** for evasions nobody wrote by hand |
+
+⚠️ Do not say the old version was "wrong". Q4b is a correct demonstration of
+degree-bounded traversal; the point is that the cap costs recall, and that cost
+is what contribution 1 removes.
+
+---
+
+## Segment 10 — Close honestly (30 s)
 
 > "Three limitations. All our positive results are synthetic - there's no public
 > dataset with real shared-attribute links. Rings that rotate identities or move

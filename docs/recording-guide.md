@@ -60,6 +60,47 @@ demo, not a project submission.
 
 ---
 
+## After the video — the gaps and the novelty
+
+For when you stop the recording and explain. One line each; do not elaborate
+unless asked.
+
+### The four gaps
+
+| # | The gap in the literature |
+|---|---|
+| 1 | Shared attributes are either linked hard or cut by a fixed degree cap — nobody keeps the cheap, explainable link and makes *how much it counts* continuous |
+| 2 | Densest-subgraph and community methods run over the whole static graph, and a benign hub merges thousands of users into one "community" — community structure is not ring structure |
+| 3 | GNN detectors give per-node scores and need labelled training graphs — no ring-level, calibrated, *explained* alert |
+| 4 | Evasion is only ever tested against the evasion strategies the authors wrote themselves |
+
+### What answers each one
+
+| # | Contribution | Measured |
+|---|---|---|
+| 1 | **Hub-aware weighting** — a shared attribute contributes `1/ln(1+d)`, with time decay, instead of being capped | F1 **0.73** vs **0.21** for cap-10 and **0.29** for Louvain |
+| 2 | **Incremental detection** — peel only the region each batch touched | **36 ms** per batch vs **22,501 ms** full recomputation at 100,000 users — **623×** |
+| 3 | **Calibrated, explained alerts** — ring-level, with feature contributions and a counterfactual | precision **0.76** at recall **0.74** |
+| 4 | **Evaluation under evasion** — five strategies with ground truth | `low_and_slow` 3/13 and `identity_rotation` 4/14 are the honest weak spots |
+
+### Which two are ours
+
+The four above are the detector, and that is the project's core work. The last
+five days added two things on top of it:
+
+- **The question box** — queries the live detector through MCP tools and redraws
+  the graph, driven by the local Claude Code CLI with no API key. It closes the
+  gap that no dashboard can pre-build every question an analyst will ask.
+- **The red-team search** — searches the space the five hand-written evasions are
+  points in, which is what closes gap 4 properly. It runs, but the isolated
+  single-ring setup still needs validating against the full scenarios, so we are
+  not quoting an evasion rate from it yet.
+
+The checkable number: **1,386 lines** of new modules, and **94 lines added, 5
+removed** in the existing code. The detector, simulator and scorer are untouched.
+
+---
+
 ## Three things that will cost you the take
 
 - **The answer takes 15–30 s.** That is why you talk across it. Don't wait in

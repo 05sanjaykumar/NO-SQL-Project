@@ -212,7 +212,9 @@ Then the honest line about the two you added on top:
 ### If you want the before/after on the previous code
 
 Useful if the examiner asks what the project looked like earlier. Say it as
-project history, not as a claim.
+**project history**, not as a claim about who did what - most of the right-hand
+column is Roshan's detector, simulator and dashboard, merged on 25 October. The
+section after this one is the part that is yours.
 
 | First version | Now |
 |---|---|
@@ -228,6 +230,51 @@ project history, not as a claim.
 ⚠️ Do not say the old version was "wrong". Q4b is a correct demonstration of
 degree-bounded traversal; the point is that the cap costs recall, and that cost
 is what contribution 1 removes.
+
+---
+
+## Segment 9b — What we changed in the last five days (60 s)
+
+This is the answer to "what did *you* do". Keep it to the dates, the two
+features and the one number; do not read the table out.
+
+| Date | What | Size |
+|---|---|---|
+| 25 Oct | Neo4j healthcheck fix - 5 retries × 10 s expired before the GDS plugin finished booting, so `docker compose up` died with *container is unhealthy*. One line: `start_period: 90s`. | 4 lines |
+| 25 Oct | `start.sh` / `stop.sh` repointed at the merged stack | 47 lines |
+| 27 Oct | **Adversarial search** - an attack space with validity guards, a random and an evolutionary strategist, a trial runner that builds scenarios in memory | 735 lines + 78 of tests |
+| 27 Oct | **MCP server** - 14 tools over the live API, so a model can query the running detector | 261 lines + 63 of tests |
+| 29 Oct | **Ask panel** - the question box, and the route that drives the local Claude Code CLI with no API key and no cloud account | 316 lines |
+| 29 Oct | **The conversation drives the graph** - focus state broadcast over the existing WebSocket, so an answer re-draws the dashboard instead of only describing it | 77 lines |
+| 30 Oct | Demo script and this recording guide | 760 lines |
+
+The one number worth saying out loud, because it is the thing an examiner can
+actually go and check:
+
+> "Fourteen hundred lines of new modules and a hundred and forty of tests. Into
+> the existing code: ninety-four lines added and five removed. The detector, the
+> simulator and the scorer are untouched - two new API routes registered with one
+> line each, one new panel, and one optional prop on the graph component."
+
+That is the claim to make, and it is a stronger one than a big diff would be:
+the additions are a layer on a working system, not a rewrite of it.
+
+### Which gap each of the two closes
+
+| | Gap | Why the existing system could not close it |
+|---|---|---|
+| **Ask panel + MCP** | Every panel on the dashboard exists because someone decided in advance to build it. An analyst's actual next question - *is this ring connected to that one? what if the device link had not counted?* - needs a query nobody wrote. | The dashboard can only show what was designed into it. The MCP tools expose the live detector, the simulator and the answer key behind one question box, so a question is asked, answered from live data, and checkable against ground truth in one exchange. |
+| **Adversarial search** | Gap 4 from segment 0. The evaluation tests five evasion strategies - and the five were written by the same people who wrote the detector. | The five are points in a space (ring type, size, recruitment rate, action rate, lifetime). Searching that space finds behaviours nobody thought to write down. |
+
+⚠️ On the second one, say the status: the harness runs and produces results,
+but the isolated single-ring setup has not been validated against the full
+scenarios, so no evasion rate from it is quotable yet. Saying that costs you
+nothing and protects you if someone asks how it was measured.
+
+⚠️ Do not claim the hub-aware weighting, the incremental engine, the simulator
+or the React dashboard as last-week work. They are the project's four
+contributions and they are Roshan's build. "Our two additions sit on top of
+them" is the accurate sentence, and it is still a good one.
 
 ---
 

@@ -194,6 +194,25 @@ honest answer is stronger than a vague one.
 > so a question can be asked, answered from live data and checked against ground
 > truth in one exchange."
 
+**"What did each of you do?"** / **"What changed recently?"**
+> "The four contributions - hub-aware weighting, incremental detection,
+> calibrated ring-level alerts and the evasion evaluation - are the detector and
+> the dashboard, and that is Roshan's build. The last five days added two things
+> on top of it: the question box, which queries the live detector through MCP
+> tools and re-draws the graph, and the red-team search, which looks for evasions
+> we did not write by hand. Fourteen hundred lines of new modules; ninety-four
+> lines added and five removed in the existing code. The detector, the simulator
+> and the scorer are untouched."
+
+Then the honest status line on the second one: the search runs, but its isolated
+single-ring setup has not been validated against the full scenarios, so there is
+no quotable evasion rate from it yet.
+
+⚠️ Resist the temptation to let the four contributions sound like last week's
+work. An examiner who looks at the commit history will see the dates, and
+"ours sits on top of hers" is a better answer than one that does not survive
+being checked.
+
 ---
 
 ## Known rough edge

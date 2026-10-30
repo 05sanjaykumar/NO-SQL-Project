@@ -11,6 +11,48 @@ once to confirm everything works, press **Stop**, reload.
 
 ---
 
+## The two-minute cut
+
+If the video is one or two minutes, record **only this**. Everything below is
+the long version - keep it as reference, not as a shot list.
+
+Set up before you hit record: scenario **demo_story (120 users, 90s)**, seed
+**7**, speed **5×**, tick **Oracle view**, and click **show everything** if a
+focus bar is still showing from an earlier question. Reload so the graph is
+empty.
+
+| Time | Do | Say |
+|---|---|---|
+| 0:00 | Press **Start**, let the graph fill | "A fraud ring is one person running many fake accounts. Each looks normal alone - what gives them away is a shared device, card or IP. But offices and public wifi share those too, so naive flagging drowns in false positives." |
+| 0:20 | Point at the **Scoreboard** | "Every ring here was planted by the simulator, so we have an answer key - precision, recall and time-to-detect against ground truth, live." |
+| 0:35 | Click the **Ask the system** box, type the question below, and keep talking while it thinks | "This is our addition. Every panel exists because we decided in advance to build it - you can't pre-build every question an analyst will ask. This one queries the live detector through MCP tools and then re-draws the graph." |
+| 1:05 | The graph narrows to the ring; point at the tool chips | "The chips are the tools it actually called, so you can see it queried the system rather than inventing a number." |
+| 1:20 | Point at the weighting dropdown reading **1/ln(1+deg)** | "The core method: instead of a hard degree cap, a shared attribute contributes one over log of its degree. A busy hub counts for almost nothing, but a group sharing that hub *and* trading among itself still surfaces. F1 0.73, against 0.21 for degree-capped rules." |
+| 1:40 | Stop talking over the app | "Limitation: all of this is synthetic, and slow or identity-rotating rings still get past us." |
+
+The question to type:
+
+```
+Show me the highest-risk confirmed ring on the graph, hiding everything
+else, and explain in two sentences why it was flagged.
+```
+
+Three things that will cost you the take:
+
+- The answer takes **15-30 s**. That is why the script has you talking across
+  it. Do not sit in silence waiting, and do not retry if it fails - say the
+  sentence and move to the dropdown.
+- Do **not** toggle the weighting dropdown on camera in a cut this short. The
+  honest comparison needs two runs, which you do not have time for; pointing at
+  it and saying the measured number is accurate and takes five seconds.
+- Each question costs about 15-25 cents. Ask one.
+
+If you need **one minute**, drop rows 2 and 5: the problem, the question box,
+and the limitation. The question box is the novelty, so it is the one row that
+cannot go.
+
+---
+
 ## Segment 0 — The gap you are closing (45 s)
 
 Say this before you touch anything. It is what makes the rest look like research
@@ -122,13 +164,18 @@ Now inject again with evasion `low_and_slow`, size `4`.
 Press **Stop**. Switch scenario to `hub_heavy (100 users, 60s)`, seed `7`,
 speed `5x`, **Start**. This scenario has a `mega_office_gateway` hub.
 
-Let it run ~20 seconds, then in **DETECTORS** untick **hub aware**, leaving
-**static cypher** on.
+Let it run ~20 seconds, then in **DETECTORS** change the weighting dropdown
+(the one reading **1/ln(1+deg)**) to **no hub weighting**.
 
 > "This is the old approach: fixed rules with a hard degree cap. The cap throws
 > away the busy office gateway - and any ring hiding behind it goes with it."
 
-Point at recall falling in the scoreboard. Now re-tick **hub aware**.
+Watch the scoreboard. Now set the dropdown back to **1/ln(1+deg)**.
+
+⚠️ Toggling mid-run is confounded: the run is still growing, so the numbers
+move for two reasons at once. If you want the contrast to be clean, run the
+scenario twice at the same seed - once on each setting - and compare the final
+scoreboards. On a *finished* run the dropdown changes nothing at all.
 
 > "Our method replaces the cap with a continuous weight. A shared attribute
 > contributes one over log of its degree, with time decay. A busy hub counts for
